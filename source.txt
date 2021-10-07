@@ -1,0 +1,13 @@
+push 5
+push 2
+
+
+div
+
+31212412
+
+push 4
+add
+
+out
+hlt
