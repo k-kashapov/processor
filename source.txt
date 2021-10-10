@@ -1,13 +1,12 @@
-push 5
-push 2
-
-
-div
-
-31212412
-
-push 4
-add
-
-out
+pop
+push 1
+pop
+pop
+pop
+pop
+pop
+pop
+pop
+pop
+pop
 hlt

@@ -1,35 +1,73 @@
 #include "files.h"
+#include "Processor.h"
+#include "Info.h"
 
 int main(int argc, const char** argv)
 {
-    file_info file;
+    FILE *code = fopen ("code.dead", "rb");
+    assert (code);
 
-    config io_config;
+    char *text = read_to_end (code);
+    char *text_ptr = text;
 
-    get_params (argc, argv, &io_config);
+    Header_t header = *((Header_t *)text);
+    printf ("sign = %x\n", header.signature);
+    printf ("ver = %x\n", header.version);
+    printf ("chars = %d\n", header.char_num);
 
-    read_all_lines (&file, io_config.input_file);
+    text += sizeof (Header_t);
 
-    FILE* out_blet = fopen ("aaa.cpp", "wt");
+    bgn;
 
-    assert (out_blet);
+    printf ("now = %d; header_size = %d\n", text - text_ptr, sizeof (Header_t));
 
-    const char * msg = "\x23include \"Processor.h\"\nint main (int argc, const char** argv)\n{\n    bgn();\n";
-
-    printf ("%d", fwrite ((void *) msg, 1, 84, out_blet));
-
-    for (int line = 0; line < file.lines_num; line++)
+    for (int ip = 0; ip < header.char_num;)
     {
-        char *command;
-        float val = 0;
-        sscanf (file.strs[line]->text, "%s %f", command, &val);
+        char command = text[ip++];
+        int val = 0;
 
-        //if (!strcmp (command, "push")) fprintf (out, "push (%1.0f);\n", val);
-         
+        printf ("com = %d; val = %d\n", command, val);
+
+        switch (command) {
+          case PUSH_CODE:
+            {
+              val = *(int *)(text+ip);
+              push (val);
+              ip += sizeof (int);
+            }
+            break;
+          case IN_CODE:
+            {
+              in;
+            }
+            break;
+          case POP_CODE:
+            pop;
+            break;
+          case ADD_CODE:
+            add;
+            break;
+          case SUB_CODE:
+            sub;
+            break;
+          case MUL_CODE:
+            mul;
+            break;
+        	case DIV_CODE:
+            div;
+        	   break;
+        	case OUT_CODE:
+            out;
+        	   break;
+          case HLT_CODE:
+            hlt;
+            break;
+          default:
+            printf ("\nERROR: INVALID COMMAND CODE: %d at %d\n", command, ip - 1);
+            break;
+        }
+        printf ("com = %d; val = %d\n", command, val);
     }
 
-    //fprintf (out, "    return 0;\n}"); 
-
-    fclose (out_blet);
     return 0;
 }
