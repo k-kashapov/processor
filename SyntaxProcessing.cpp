@@ -4,7 +4,7 @@
 
 int ProcessCommand (const char *command, uint64_t val, FILE* output)
 {
-  printf("addr = %#06x; command = %*s; value = %06lu; bytes = ", ftell (output), MAX_NAME_LEN, command, val);
+  printf("addr = %#06x; command = %*s; value = %012.3lf; bytes = ", ftell (output), MAX_NAME_LEN, command, (double)val / 1000);
 
   char code = -1;
 
@@ -13,7 +13,7 @@ int ProcessCommand (const char *command, uint64_t val, FILE* output)
     fputc (PUSH_CODE, output);
     printf("%02X ", PUSH_CODE);
 
-    for (int i = 0; i < sizeof (int); i++)
+    for (int i = 0; i < sizeof (uint64_t); i++)
     {
       unsigned char val_byte = (unsigned char) val;
       fputc (val_byte, output);
@@ -22,7 +22,7 @@ int ProcessCommand (const char *command, uint64_t val, FILE* output)
       val >>= 8;
     }
     printf("\n");
-    return 5;
+    return 1 + sizeof (uint64_t);
   }
   else if (!strcmp (command, "in"))  code = IN_CODE;
   else if (!strcmp (command, "pop")) code = POP_CODE;
@@ -54,12 +54,12 @@ int Compile (file_info *source, FILE *output)
 
   int char_num = 0;
 
-  for (int line = 0; line < source->lines_num; line++)
+  for (int ip = 0; ip < source->lines_num; ip++)
   {
       char command[MAX_NAME_LEN] = {};
       double fval = 0.0;
 
-      sscanf (source->strs[line]->text, "%s %lf", command, &fval);
+      sscanf (source->strs[ip]->text, "%s %lf", command, &fval);
 
       uint64_t val = (uint64_t) (fval * 1000);
 
@@ -68,8 +68,8 @@ int Compile (file_info *source, FILE *output)
       if (command_len < 0)
       {
         printf ("\n###############\
-                 \nCOMPILATION ERROR: invalid command: %s ### with value = %lu ### at line %d\n",
-                command, val, line + 1);
+                 \nCOMPILATION ERROR: invalid command: %s ### with value = %lu ### at ip %d\n",
+                command, val, ip + 1);
         return INVALID_SYNTAX;
       }
       else if (command_len == 0) // hlt foundd

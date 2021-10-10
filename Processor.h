@@ -10,7 +10,12 @@
 
 #define pop StackPop (&proc_stk, NULL)
 
-#define add push (pop + pop)
+#define add                                  \
+  {                                          \
+    uint64_t b = StackPop (&proc_stk, NULL); \
+    uint64_t a = StackPop (&proc_stk, NULL); \
+    push (a + b);                            \
+  }
 
 #define sub                                  \
   {                                          \
@@ -23,7 +28,7 @@
 
 #define div push (1000.0f / pop * pop)
 
-#define out printf ("%.3lf\n", ((float)StackPop(&proc_stk, NULL)) / 1000)
+#define out printf ("%.3lf\n", ((double)StackPop(&proc_stk, NULL)) / 1000)
 
 #define hlt StackDtor (&proc_stk)
 

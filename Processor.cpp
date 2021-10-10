@@ -2,6 +2,8 @@
 #include "Processor.h"
 #include "Info.h"
 
+//#define PROC_DUMP
+
 int main(int argc, const char** argv)
 {
     FILE *code = fopen ("code.dead", "rb");
@@ -11,9 +13,11 @@ int main(int argc, const char** argv)
     char *text_ptr = text;
 
     Header_t header = *((Header_t *)text);
-    printf ("sign = %x\n", header.signature);
-    printf ("ver = %x\n", header.version);
-    printf ("chars = %d\n", header.char_num);
+    #ifdef PROC_DUMP
+      printf ("sign = %X\n", header.signature);
+      printf ("ver = %x\n", header.version);
+      printf ("chars = %d\n", header.char_num);
+    #endif
 
     text += sizeof (Header_t);
 
@@ -27,9 +31,9 @@ int main(int argc, const char** argv)
         switch (command) {
           case PUSH_CODE:
             {
-              val = *(int *)(text+ip);
+              val = *(uint64_t *)(text+ip);
               push (val);
-              ip += sizeof (int);
+              ip += sizeof (uint64_t);
             }
             break;
           case IN_CODE:
@@ -63,7 +67,9 @@ int main(int argc, const char** argv)
             getchar ();
             break;
         }
-        printf ("com = %d; val = %lu\n", command, val);
+        #ifdef PROC_DUMP
+          printf ("com = %d; val = %.3lf\n", command, (double) val / 1000);
+        #endif
     }
 
     return 0;
