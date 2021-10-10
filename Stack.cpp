@@ -282,14 +282,11 @@ type_t StackPop (stack_t* stk, uint64_t *err_ptr)
 {
     STACK_OK (stk);
 
-    if (err_ptr)
+    if (stk->size < 1)
     {
-        if (stk->size < 1)
-        {
-            if (Log_file) fprintf (Log_file, "<p style = \"color : red\">ERROR: zero elements pop</p>");
-            *err_ptr = ZERO_ELEM_POP;
-            return ZERO_ELEM_POP;
-        }
+        if (Log_file) fprintf (Log_file, "<p style = \"color : red\">ERROR: zero elements pop</p>");
+        if (err_ptr) *err_ptr = ZERO_ELEM_POP;
+        return ZERO_ELEM_POP;
     }
 
     type_t copy = *(stk->buffer + stk->size - 1);

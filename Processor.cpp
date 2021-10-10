@@ -26,8 +26,6 @@ int main(int argc, const char** argv)
         char command = text[ip++];
         int val = 0;
 
-        printf ("com = %d; val = %d\n", command, val);
-
         switch (command) {
           case PUSH_CODE:
             {
