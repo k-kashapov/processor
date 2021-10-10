@@ -19,12 +19,10 @@ int main(int argc, const char** argv)
 
     bgn;
 
-    printf ("now = %d; header_size = %d\n", text - text_ptr, sizeof (Header_t));
-
     for (int ip = 0; ip < header.char_num;)
     {
         char command = text[ip++];
-        int val = 0;
+        uint64_t val = 0;
 
         switch (command) {
           case PUSH_CODE:
@@ -53,18 +51,19 @@ int main(int argc, const char** argv)
             break;
         	case DIV_CODE:
             div;
-        	   break;
+        	  break;
         	case OUT_CODE:
             out;
-        	   break;
+        	  break;
           case HLT_CODE:
             hlt;
             break;
           default:
             printf ("\nERROR: INVALID COMMAND CODE: %d at %d\n", command, ip - 1);
+            getchar ();
             break;
         }
-        printf ("com = %d; val = %d\n", command, val);
+        printf ("com = %d; val = %lu\n", command, val);
     }
 
     return 0;

@@ -3,7 +3,7 @@
 struct Header_t
 {
 	int signature = 'KEEK';
-	int version = 3;
+	int version = 4;
 	int char_num = 0;
 };
 
