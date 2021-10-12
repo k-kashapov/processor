@@ -1,5 +1,5 @@
-#include "SyntaxProcessing.h"
-#include "Info.h"
+#include "include/SyntaxProcessing.h"
+#include "include/Info.h"
 
 int main (int argc, const char **argv)
 {
