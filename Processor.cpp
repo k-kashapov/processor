@@ -1,6 +1,6 @@
-#include "include/files.h"
-#include "include/Processor.h"
-#include "include/Info.h"
+#include "files.h"
+#include "Processor.h"
+#include "Info.h"
 
 int main(int argc, const char** argv)
 {
@@ -26,7 +26,9 @@ int main(int argc, const char** argv)
 
     bytes += sizeof (Header_t);
 
-    run_binary (bytes, header.char_num);
+    int runtime_err = run_binary (bytes, header.char_num);
+    if (runtime_err)
+      return runtime_err;
 
     return 0;
 }

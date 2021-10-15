@@ -1,6 +1,7 @@
-#include "../include/Info.h"
-#include "../include/SyntaxProcessing.h"
-#include "../include/stdint.h"
+#include "Info.h"
+#include "SyntaxProcessing.h"
+#include <stdint.h>
+#include "enum.h"
 
 int ProcessCommand (const char *command, uint64_t val, FILE* output)
 {
@@ -10,10 +11,10 @@ int ProcessCommand (const char *command, uint64_t val, FILE* output)
 
   if (!strcmp (command, "push"))
   {
-    fputc (PUSH_CODE, output);
-    printf("%02X ", PUSH_CODE);
+    fputc (PUSH_CMD, output);
+    printf("%02X ", PUSH_CMD);
 
-    for (int i = 0; i < sizeof (uint64_t); i++)
+    for (int i = 0; i < sizeof (type_t); i++)
     {
       unsigned char val_byte = (unsigned char) val;
       fputc (val_byte, output);
@@ -22,19 +23,19 @@ int ProcessCommand (const char *command, uint64_t val, FILE* output)
       val >>= 8;
     }
     printf("\n");
-    return 1 + sizeof (uint64_t);
+    return 1 + sizeof (type_t);
   }
-  else if (!strcmp (command, "in"))  code = IN_CODE;
-  else if (!strcmp (command, "pop")) code = POP_CODE;
-  else if (!strcmp (command, "add")) code = ADD_CODE;
-  else if (!strcmp (command, "sub")) code = SUB_CODE;
-  else if (!strcmp (command, "mul")) code = MUL_CODE;
-  else if (!strcmp (command, "div")) code = DIV_CODE;
-  else if (!strcmp (command, "out")) code = OUT_CODE;
+  else DEF_CMD (in)
+  else DEF_CMD (pop)
+  else DEF_CMD (add)
+  else DEF_CMD (sub)
+  else DEF_CMD (mul)
+  else DEF_CMD (div)
+  else DEF_CMD (out)
   else if (!strcmp (command, "hlt"))
   {
-    fputc (HLT_CODE, output);
-    printf("%02x HALT\n", HLT_CODE);
+    fputc (HLT_CMD, output);
+    printf("%02x HALT\n", HLT_CMD);
     return 0;
   }
   else return INVALID_SYNTAX;

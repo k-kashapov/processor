@@ -1,4 +1,4 @@
-#include "../include/Stack.h"
+#include "Stack.h"
 
 const int BUFFER_INIT_SIZE = 1;
 

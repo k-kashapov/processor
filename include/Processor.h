@@ -1,42 +1,63 @@
 #include "Stack.h"
 
+#define pop_ab(cmd_name)                                                  \
+  uint64_t pop_err = 0;                                                   \
+  type_t b = StackPop (proc_stk, &pop_err);                               \
+  type_t a = StackPop (proc_stk, &pop_err);                               \
+  if (pop_err)                                                            \
+  {                                                                       \
+    printf("RUNTIME ERROR: in function: " #cmd_name                       \
+    "; error: %06lX\n", pop_err);                                         \
+    return pop_err;                                                       \
+  }
+
 #define push(value) StackPush (proc_stk, value)
 
-#define in                           \
-  double val = 0;                    \
-  printf ("Waiting for input...\n"); \
-  scanf("%lf", &val);                \
-  push((uint64_t) (val * 1000))
+#define in                                                                \
+  double val = 0;                                                         \
+  printf ("Waiting for input...\n");                                      \
+  scanf("%lf", &val);                                                     \
+  push((type_t) (val * 1000))
 
 #define pop StackPop (proc_stk, NULL)
 
-#define add                                  \
-  {                                          \
-    uint64_t b = StackPop (proc_stk, NULL);  \
-    uint64_t a = StackPop (proc_stk, NULL);  \
-    push (a + b);                            \
+#define add                                                               \
+  {                                                                       \
+    pop_ab (add);                                                         \
+    push (a + b);                                                         \
   }
 
-#define sub                                  \
-  {                                          \
-    uint64_t b = StackPop (proc_stk, NULL);  \
-    uint64_t a = StackPop (proc_stk, NULL);  \
-    push (a - b);                            \
+#define sub                                                               \
+  {                                                                       \
+    pop_ab (sub);                                                         \
+    push (a - b);                                                         \
   }
 
-#define mul push (pop * pop / 1000)
+#define mul                                                               \
+  {                                                                       \
+    pop_ab (mul);                                                         \
+    push (a * b / 1000);                                                  \
+  }
 
-#define div push (1000.0f / pop * pop)
+#define div                                                               \
+  {                                                                       \
+    pop_ab (div);                                                         \
+    push (1000.0f / pop * pop);                                           \
+  }
 
-#define out printf ("%.3lf\n", ((double)StackPop(proc_stk, NULL)) / 1000)
+#define out                                                               \
+  {                                                                       \
+    uint64_t pop_err = 0;                                                 \
+    type_t num = StackPop (proc_stk, &pop_err);                           \
+    if (pop_err)                                                          \
+    {                                                                     \
+      printf("RUNTIME ERROR: in function: out; error: %02lX\n", pop_err); \
+      return pop_err;                                                     \
+    }                                                                     \
+    printf ("%.3lf\n", ((double)num) / 1000);                             \
+  }
 
-#define hlt StackDtor (proc_stk)
-
-#define bgn              \
-  stack_t proc_stk = {}; \
-  StackInit(proc_stk)
-
-enum Exit_codes
+enum ExitCodes
 {
   INVALID_FILE = -1,
   INVALID_CODE = -2,

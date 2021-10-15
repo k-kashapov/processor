@@ -11,11 +11,12 @@
 /// </summary>
 const int BUFF_SIZE = 500;
 
-const int READ_TEXT_FAILED = -1;
-
-const int WRITING_TEXT_FAILED = -2;
-
-const int OPEN_FILE_FAILED = -3;
+enum FilesExitCodes
+{
+  READ_TEXT_FAILED =    -1,
+  WRITING_TEXT_FAILED = -2,
+  OPEN_FILE_FAILED =    -3
+};
 
 /**
  * \brief Структура, содержащая строку и её длину

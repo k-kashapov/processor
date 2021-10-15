@@ -1,12 +1,11 @@
-#include "../include/Processor.h"
-#include "../include/Info.h"
+#include "Processor.h"
+#include "Info.h"
+#include "enum.h"
 
 int run_binary (void *bytes_ptr, int bytes_num)
 {
-  assert (bytes_ptr);
-  assert (bytes_num >= 0);
-
-  bgn;
+  stack_t proc_stk = {};
+  StackInit (proc_stk);
 
   unsigned char *bytes = (unsigned char *)bytes_ptr;
 
@@ -20,11 +19,15 @@ int run_binary (void *bytes_ptr, int bytes_num)
 
       int error = process_command (command, bytes + ip, &ip);
 
+      if (error == HLT_CMD)
+      {
+        return 0;
+      }
+
       if (error)
       {
-        printf ("\nERROR: INVALID COMMAND CODE: %d at %d\n", command, ip - 1);
-        getchar ();
-        return INVALID_CODE;
+        printf ("\nFATAL: command = %d at %d\n", command, ip - 1);
+        return error;
       }
   }
 
@@ -36,7 +39,7 @@ int process_command_ (stack_t *proc_stk, unsigned char command, unsigned char *c
   type_t val = 0;
 
   switch (command) {
-    case PUSH_CODE:
+    case PUSH_CMD:
       {
         val = *(type_t *)current_byte;
         push (val);
@@ -44,32 +47,31 @@ int process_command_ (stack_t *proc_stk, unsigned char command, unsigned char *c
         *ip += sizeof (uint64_t);
       }
       break;
-    case IN_CODE:
+    case IN_CMD:
       {
         in;
       }
       break;
-    case POP_CODE:
+    case POP_CMD:
       pop;
       break;
-    case ADD_CODE:
+    case ADD_CMD:
       add;
       break;
-    case SUB_CODE:
+    case SUB_CMD:
       sub;
       break;
-    case MUL_CODE:
+    case MUL_CMD:
       mul;
       break;
-    case DIV_CODE:
+    case DIV_CMD:
       div;
       break;
-    case OUT_CODE:
+    case OUT_CMD:
       out;
       break;
-    case HLT_CODE:
-      hlt;
-      break;
+    case HLT_CMD:
+      return HLT_CMD;
     default:
       return INVALID_CODE;
   }
