@@ -1,7 +1,7 @@
 // AUTO-GENERATED
 // DO NOT TOUCH IF YOU DON'T KNOW WHAT YOU'RE DOING
 
-#define DEF_CMD(num, name) name##_CMD = num,
+#define DEF_CMD(num, name, argc) CMD_##name = num,
 
 enum asm_commands
 {

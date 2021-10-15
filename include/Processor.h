@@ -42,7 +42,12 @@
 #define div                                                               \
   {                                                                       \
     pop_ab (div);                                                         \
-    push (1000.0f / pop * pop);                                           \
+    if (b == 0)                                                           \
+    {                                                                     \
+      printf("RUNTIME ERROR: division by zero\n");                        \
+      return DIV_BY_ZERO;                                                 \
+    }                                                                     \
+    push (1000.0f / a * b);                                               \
   }
 
 #define out                                                               \
@@ -61,6 +66,7 @@ enum ExitCodes
 {
   INVALID_FILE = -1,
   INVALID_CODE = -2,
+  DIV_BY_ZERO  = -3,
 };
 
 #define PROC_DUMP

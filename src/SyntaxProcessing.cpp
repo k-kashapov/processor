@@ -1,52 +1,27 @@
 #include "Info.h"
+#include "enum.h"
 #include "SyntaxProcessing.h"
 #include <stdint.h>
-#include "enum.h"
+#include "Stack.h"
 
-int ProcessCommand (const char *command, uint64_t val, FILE* output)
+int ProcessCommand (const char *text, FILE* output)
 {
-  printf("addr = %#06x; command = %*s; value = %012.3lf; bytes = ", ftell (output), MAX_NAME_LEN, command, (double)val / 1000);
+  char command[MAX_NAME_LEN] = {};
+  uint64_t val = 0;
+  int bytes_read = 0;
 
-  char code = -1;
+  sscanf (text, "%s %n", command, &bytes_read);
+  text += bytes_read;
 
-  if (!strcmp (command, "push"))
-  {
-    fputc (PUSH_CMD, output);
-    printf("%02X ", PUSH_CMD);
+  printf("addr = %#06X; command = %*s; ", ftell (output), MAX_NAME_LEN, command);
 
-    for (int i = 0; i < sizeof (type_t); i++)
-    {
-      unsigned char val_byte = (unsigned char) val;
-      fputc (val_byte, output);
-      printf ("%02X ", val_byte);
-
-      val >>= 8;
-    }
-    printf("\n");
-    return 1 + sizeof (type_t);
-  }
-  else DEF_CMD (in)
-  else DEF_CMD (pop)
-  else DEF_CMD (add)
-  else DEF_CMD (sub)
-  else DEF_CMD (mul)
-  else DEF_CMD (div)
-  else DEF_CMD (out)
-  else if (!strcmp (command, "hlt"))
-  {
-    fputc (HLT_CMD, output);
-    printf("%02x HALT\n", HLT_CMD);
-    return 0;
-  }
-  else return INVALID_SYNTAX;
-
-  fputc (code, output);
-  printf ("%02X\n", code);
+  #include "commands.h"
+  return INVALID_SYNTAX;
 
   return 1;
 }
 
-int Compile (file_info *source, FILE *output)
+int Assemble (file_info *source, FILE *output)
 {
   for (int printed_len = 0; printed_len < sizeof (Header_t); printed_len++)
   {
@@ -54,33 +29,29 @@ int Compile (file_info *source, FILE *output)
   }
 
   int char_num = 0;
+  int last_cmd_len = 0;
 
   for (int ip = 0; ip < source->lines_num; ip++)
   {
-      char command[MAX_NAME_LEN] = {};
-      double fval = 0.0;
+      last_cmd_len = ProcessCommand (source->strs[ip]->text, output);
 
-      sscanf (source->strs[ip]->text, "%s %lf", command, &fval);
-
-      uint64_t val = (uint64_t) (fval * 1000);
-
-      int command_len = ProcessCommand (command, val, output);
-
-      if (command_len < 0)
+      if (last_cmd_len < 0)
       {
-        printf ("\n###############\
-                 \nCOMPILATION ERROR: invalid command: %s ### with value = %lu ### at ip %d\n",
-                command, val, ip + 1);
+        // printf ("\n###############\
+        //          \nCOMPILATION ERROR: invalid command: %s ### with value = %lu ### at ip %d\n",
+        //         command, 0, ip + 1);
         return INVALID_SYNTAX;
       }
-      else if (command_len == 0) // hlt foundd
+      else if (last_cmd_len == 0) // hlt foundd
       {
         char_num ++;
         break;
       }
-
-      char_num += command_len;
+      char_num += last_cmd_len;
   }
+
+  fputc (CMD_hlt, output);
+  char_num++;
 
   Header_t header;
   header.char_num = char_num;
