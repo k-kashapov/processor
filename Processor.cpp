@@ -1,32 +1,19 @@
-#include "files.h"
 #include "Processor.h"
 #include "Info.h"
 
 int main(int argc, const char** argv)
 {
-    FILE *code = fopen ("code.dead", "rb");
-    assert (code);
+    processor proc = {};
+    stack_t proc_stk = {};
+    proc.stk = &proc_stk;
 
-    char *bytes = read_to_end (code);
+    read_code (&proc);
 
-    Header_t header = *((Header_t *)bytes);
-    #ifdef PROC_DUMP
-      printf ("sign = %X\n", header.signature);
-      printf ("version = %x\n", header.version);
-      printf ("bytes = %d\n", header.char_num);
-    #endif
+    int header_err = get_header (&proc);
+    if (header_err)
+      return header_err;
 
-    if (header.signature != 'KEEK')
-    {
-      printf ("###########################\n");
-      printf ("FATAL: Invalid file\n");
-      printf ("###########################\n");
-      return INVALID_FILE;
-    }
-
-    bytes += sizeof (Header_t);
-
-    int runtime_err = run_binary (bytes, header.char_num);
+    int runtime_err = run_binary (&proc);
     if (runtime_err)
       return runtime_err;
 

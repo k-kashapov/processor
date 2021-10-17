@@ -1,13 +1,12 @@
 #include "Info.h"
 #include "enum.h"
 #include "SyntaxProcessing.h"
-#include <stdint.h>
 #include "Stack.h"
+#include <stdint.h>
 
 int ProcessCommand (const char *text, FILE* output)
 {
   char command[MAX_NAME_LEN] = {};
-  uint64_t val = 0;
   int bytes_read = 0;
 
   sscanf (text, "%s %n", command, &bytes_read);

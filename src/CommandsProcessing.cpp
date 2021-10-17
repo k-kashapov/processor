@@ -1,32 +1,64 @@
-#include "Processor.h"
 #include "Info.h"
 #include "enum.h"
+#include "Processor.h"
+#include "files.h"
 
-int run_binary (void *bytes_ptr, int bytes_num)
+int read_code (processor *proc)
 {
-  stack_t proc_stk = {};
-  StackInit (proc_stk);
+  FILE *code = fopen ("code.dead", "rb");
+  assert (code);
 
-  unsigned char *bytes = (unsigned char *)bytes_ptr;
+  proc->code = read_to_end (code);
+  assert (proc->code);
 
-  for (int ip = 0; ip < bytes_num;)
+  return 0;
+}
+
+int get_header (processor *proc)
+{
+  Header_t header = *((Header_t *)proc->code);
+  #ifdef PROC_DUMP
+    printf ("sign = %X\n", header.signature);
+    printf ("version = %x\n", header.version);
+    printf ("bytes = %d\n", header.char_num);
+  #endif
+
+  if (header.signature != 'KEEK')
   {
-      unsigned char command = bytes[ip++];
+    printf ("###########################\n");
+    printf ("FATAL: Invalid file\n");
+    printf ("###########################\n");
+    return INVALID_SIGNATURE;
+  }
 
+  proc->code += sizeof (Header_t);
+  proc->bytes_num = header.char_num;
+
+  return 0;
+}
+
+int run_binary (processor *proc)
+{
+  StackInit (*proc->stk);
+
+  unsigned char *bytes = (unsigned char *)proc->code;
+
+  while (proc->ip < proc->bytes_num)
+  {
       #ifdef PROC_DUMP
-        dump_proc (bytes, bytes_num, ip - 1, 1);
+        dump_proc (proc);
       #endif
 
-      int error = process_command (command, bytes + ip, &ip);
+      int error = process_command (proc);
 
-      if (error == HLT_CMD)
+      if (error == CMD_hlt)
       {
         return 0;
       }
 
       if (error)
       {
-        printf ("\nFATAL: command = %d at %d\n", command, ip - 1);
+        printf ("\nFATAL: command = %d at %d\n", proc->code[proc->ip - 1], proc->ip - 1);
         return error;
       }
   }
@@ -34,44 +66,15 @@ int run_binary (void *bytes_ptr, int bytes_num)
   return 0;
 }
 
-int process_command_ (stack_t *proc_stk, unsigned char command, unsigned char *current_byte, int *ip)
+int process_command (processor *proc)
 {
   type_t val = 0;
 
-  switch (command) {
-    case PUSH_CMD:
-      {
-        val = *(type_t *)current_byte;
-        push (val);
+  unsigned char command = proc->code[proc->ip++];
 
-        *ip += sizeof (uint64_t);
-      }
-      break;
-    case IN_CMD:
-      {
-        in;
-      }
-      break;
-    case POP_CMD:
-      pop;
-      break;
-    case ADD_CMD:
-      add;
-      break;
-    case SUB_CMD:
-      sub;
-      break;
-    case MUL_CMD:
-      mul;
-      break;
-    case DIV_CMD:
-      div;
-      break;
-    case OUT_CMD:
-      out;
-      break;
-    case HLT_CMD:
-      return HLT_CMD;
+  switch (command)
+  {
+    #include "commands.h"
     default:
       return INVALID_CODE;
   }
@@ -83,23 +86,23 @@ int process_command_ (stack_t *proc_stk, unsigned char command, unsigned char *c
   return 0;
 }
 
-int dump_proc (void *bytes, int bytes_num, int ip, int next_len)
+int dump_proc (processor *proc)
 {
-  assert (bytes && "Bytes array for dump is empty!");
+  assert (proc->code && "Bytes array for dump is empty!");
   FILE *log = fopen ("processor_log.html", "at");
   assert (log);
 
   fprintf(log, "<pre>");
-  for (int printer = 0; printer < bytes_num; printer++)
+  for (int printer = 0; printer < proc->bytes_num; printer++)
   {
     fprintf (log, "%02X ", (unsigned char)printer);
   }
   fprintf(log, "\n");
-  for (int printer = 0; printer < bytes_num; printer++)
+  for (int printer = 0; printer < proc->bytes_num; printer++)
   {
-    fprintf (log, "%02X ", ((unsigned char*)bytes)[printer]);
+    fprintf (log, "%02X ", ((unsigned char*)proc->code)[printer]);
   }
-  fprintf(log, "\n%*s%*s", ip*3+1, "^-", next_len * 3 - 1, "-^");
+  fprintf(log, "\n%*s", proc->ip*3, "^");
 
   fprintf (log, "\n---------------------------------------------------\n</pre>");
 
