@@ -1,12 +1,14 @@
-pop
-push 1
-pop
-pop
-pop
-pop
-pop
-pop
-pop
-pop
-pop
+
+push ax
+push 12345678.1234
+div
+out
+push 3
+push 9.982
+mul
+out
+push 3321.113
+push 111.12
+sub
+out
 hlt
