@@ -33,6 +33,7 @@ struct processor
   int bytes_num;
   int ip;
   type_t reg[REG_NUM];
+  type_t RAM[RAM_MEM];
 };
 
 int dump_proc (processor *proc);

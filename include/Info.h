@@ -3,10 +3,11 @@
 const int Signature = 'KEEK';
 const int Version = 5;
 const int	RAM_MEM = 20;
+const int REG_NUM = 4;
 
 struct Header_t
 {
-	int sign = signature;
-	int ver = version;
+	int sign = Signature;
+	int ver = Version;
 	int char_num = 0;
 };

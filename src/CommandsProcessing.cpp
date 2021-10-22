@@ -27,7 +27,7 @@ int get_header (processor *proc)
     printf ("bytes = %d\n", header.char_num);
   #endif
 
-  if (header.sign != signature)
+  if (header.sign != Signature)
   {
     printf ("###########################\n");
     printf ("FATAL: Invalid version\n");
@@ -35,7 +35,7 @@ int get_header (processor *proc)
     return INVALID_SIGNATURE;
   }
 
-  if (header.ver != version)
+  if (header.ver != Version)
   {
     printf ("###########################\n");
     printf ("FATAL: Invalid version\n");
@@ -90,7 +90,7 @@ int process_command (processor *proc)
   }
 
   #ifdef PROC_DUMP
-    printf ("com = %d; val = %.3lf\n", command, (double) val / 1000);
+    printf ("com = %02lX; val = %.3lf\n", command, (double) val / 1000);
   #endif
 
   return 0;
@@ -117,7 +117,7 @@ int dump_proc (processor *proc)
   fprintf(log, "Stack: ");
   for (int stk_elem = 0; stk_elem < proc->stk->capacity; stk_elem++)
   {
-    fprintf (log, "%lu, ", proc->stk->buffer[stk_elem]);
+    fprintf (log, "%ld, ", proc->stk->buffer[stk_elem]);
   }
 
   fprintf (log, "\n---------------------------------------------------\n</pre>");

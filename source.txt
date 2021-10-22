@@ -1,6 +1,10 @@
+
 push 5
 push 6
-sub
+pop [0]
+push 10
+push [0]
+mul
 
 out
 hlt

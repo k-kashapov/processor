@@ -1,5 +1,6 @@
 #include "Stack.h"
 #include "enum.h"
+#include "Info.h"
 
 #define pop_ab(cmd_name)                                                  \
   uint64_t pop_err = 0;                                                   \
@@ -14,19 +15,45 @@
 
 #define push_code                                                         \
   {                                                                       \
-    if (command & 0x20)                                                   \
+    if ((command & 0xC0) == 0xC0)                                         \
     {                                                                     \
-      char reg_num = *(proc->code + proc->ip) - 'a';                      \
-      val = reg_num * 1000;                                               \
-      StackPush (proc->stk, proc->reg[reg_num]);                          \
+      char addr = *(proc->code + proc->ip);                               \
+      if (addr < 0 || addr > RAM_MEM)                                     \
+      {                                                                   \
+        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",          \
+        command, addr);                                                   \
+      }                                                                   \
+      val = proc->RAM[addr];                                              \
       proc->ip += 1;                                                      \
     }                                                                     \
-    else                                                                  \
+    else if ((command & 0xA0) == 0xA0)                                    \
+    {                                                                     \
+      char reg = *(proc->code + proc->ip) - 'a';                          \
+      if (reg < 0 || reg > REG_NUM)                                       \
+      {                                                                   \
+        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",          \
+        command, reg);                                                    \
+      }                                                                   \
+      val = proc->RAM[proc->reg[reg]];                                    \
+      proc->ip += 1;                                                      \
+    }                                                                     \
+    else if ((command & 0x20) == 0x20)                                    \
+    {                                                                     \
+      char reg = *(proc->code + proc->ip) - 'a';                          \
+      if (reg < 0 || reg > REG_NUM)                                       \
+      {                                                                   \
+        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",          \
+        command, reg);                                                    \
+      }                                                                   \
+      val = proc->reg[reg];                                               \
+      proc->ip += 1;                                                      \
+    }                                                                     \
+    else if ((command & 0x40) == 0x40)                                    \
     {                                                                     \
       val = *(type_t *)(proc->code + proc->ip);                           \
-      StackPush (proc->stk, val);                                         \
       proc->ip += sizeof (type_t);                                        \
     }                                                                     \
+    StackPush (proc->stk, val);                                           \
   }
 
 #define in_code                                                           \
@@ -39,29 +66,43 @@
 
 #define pop_code                                                          \
   {                                                                       \
-    if (command & 0x20)                                                   \
+    uint64_t pop_err = 0;                                                 \
+    type_t pop_val = StackPop (proc->stk, &pop_err);                      \
+                                                                          \
+    if (pop_err)                                                          \
     {                                                                     \
-      char reg = *(proc->code + proc->ip) - 'a';                          \
-      val = reg * 1000;                                                   \
-      if (reg < 0 || reg > REG_NUM)                                       \
+      printf("RUNTIME ERROR: command = %d;error: %06lX\n",                \
+      command, pop_err);                                                  \
+      return pop_err;                                                     \
+    }                                                                     \
+                                                                          \
+    if ((command & 0x20) == 0x20 || (command & 0xA0) == 0xA0)             \
+    {                                                                     \
+      char addr = *(proc->code + proc->ip) - 'a';                         \
+      if (addr < 0 || addr > REG_NUM)                                     \
       {                                                                   \
         printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",          \
-        command, reg);                                                    \
+        command, addr);                                                   \
       }                                                                   \
                                                                           \
-      uint64_t pop_err = 0;                                               \
-      type_t pop_val = StackPop (proc->stk, &pop_err);                    \
-                                                                          \
-      if (pop_err)                                                        \
-      {                                                                   \
-        printf("RUNTIME ERROR: command = %d; arg = %d; error: %06lX\n",   \
-        command, reg, pop_err);                                           \
-        return pop_err;                                                   \
-      }                                                                   \
-                                                                          \
-      proc->reg[reg] = pop_val;                                           \
-      proc->ip += 1;                                                      \
+      printf ("addr = %d\n", addr);                   \
+      if ((command & 0x20) == 0x20)                                       \
+        proc->reg[addr] = pop_val;                                        \
+      else                                                                \
+        proc->RAM[proc->reg[addr]] = pop_val;                             \
     }                                                                     \
+    else if ((command & 0xC0) == 0xC0)                                    \
+    {                                                                     \
+      char addr = *(proc->code + proc->ip);                               \
+      if (addr < 0 || addr > REG_NUM)                                     \
+      {                                                                   \
+        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",          \
+        command, addr);                                                   \
+      }                                                                   \
+                                                                          \
+      proc->RAM[addr] = pop_val;                                          \
+    }                                                                     \
+    proc->ip += 1;                                                        \
   }
 
 #define add_code                                                          \
@@ -124,8 +165,6 @@ enum ExitCodes
 
 #define PROC_DUMP
 
-const int REG_NUM = 4;
-
 struct processor
 {
   stack_t *stk;
@@ -133,6 +172,7 @@ struct processor
   int bytes_num;
   int ip;
   type_t reg[REG_NUM];
+  type_t RAM[RAM_MEM];
 };
 
 int read_code (processor *proc);
