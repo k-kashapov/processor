@@ -1,5 +1,4 @@
 #include "Info.h"
-#include "enum.h"
 #include "SyntaxProcessing.h"
 #include "Stack.h"
 #include <stdint.h>
@@ -12,10 +11,14 @@ int ProcessCommand (const char *text, FILE* output)
   sscanf (text, "%s %n", command, &bytes_read);
   text += bytes_read;
 
-  printf("addr = %#06X; command = %*s; ", ftell (output), MAX_NAME_LEN, command);
+  printf("addr = %#06lX; command = %*s; ",
+    ftell (output), MAX_NAME_LEN, command);
 
   #include "commands.h"
-  return INVALID_SYNTAX;
+  {
+    printf("\nCE: INVALID_SYNTAX command = %s\n", command);
+    return INVALID_SYNTAX;
+  }
 
   return 1;
 }
@@ -36,9 +39,8 @@ int Assemble (file_info *source, FILE *output)
 
       if (last_cmd_len < 0)
       {
-        // printf ("\n###############\
-        //          \nCOMPILATION ERROR: invalid command: %s ### with value = %lu ### at ip %d\n",
-        //         command, 0, ip + 1);
+        printf ("\n###############\
+                 \nCOMPILATION ERROR: invalid command at ip %d\n", ip + 1);
         return INVALID_SYNTAX;
       }
       else if (last_cmd_len == 0) // hlt foundd
@@ -62,7 +64,7 @@ int Assemble (file_info *source, FILE *output)
     header_ptr++;
   }
 
-  printf("bytes = %d\n", char_num);
+  printf("bytes total = %d\n", char_num);
 
   return 0;
 }

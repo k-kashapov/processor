@@ -326,7 +326,7 @@ type_t StackTop (stack_t *stk, uint64_t *err_ptr)
         }
     }
 
-    return stk->buffer [stk->size - 1];
+    return stk->buffer[stk->size - 1];
 }
 
 unsigned int MurmurHash (void *stk, int len)

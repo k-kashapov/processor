@@ -11,6 +11,10 @@ int read_code (processor *proc)
   proc->code = read_to_end (code);
   assert (proc->code);
 
+  int closed = fclose (code);
+
+  if (closed == EOF) return EOF;
+
   return 0;
 }
 
@@ -18,17 +22,25 @@ int get_header (processor *proc)
 {
   Header_t header = *((Header_t *)proc->code);
   #ifdef PROC_DUMP
-    printf ("sign = %X\n", header.signature);
-    printf ("version = %x\n", header.version);
+    printf ("sign = %X\n", header.sign);
+    printf ("version = %x\n", header.ver);
     printf ("bytes = %d\n", header.char_num);
   #endif
 
-  if (header.signature != 'KEEK')
+  if (header.sign != signature)
   {
     printf ("###########################\n");
-    printf ("FATAL: Invalid file\n");
+    printf ("FATAL: Invalid version\n");
     printf ("###########################\n");
     return INVALID_SIGNATURE;
+  }
+
+  if (header.ver != version)
+  {
+    printf ("###########################\n");
+    printf ("FATAL: Invalid version\n");
+    printf ("###########################\n");
+    return INVALID_VERSION;
   }
 
   proc->code += sizeof (Header_t);
@@ -40,8 +52,6 @@ int get_header (processor *proc)
 int run_binary (processor *proc)
 {
   StackInit (*proc->stk);
-
-  unsigned char *bytes = (unsigned char *)proc->code;
 
   while (proc->ip < proc->bytes_num)
   {
@@ -72,7 +82,7 @@ int process_command (processor *proc)
 
   unsigned char command = proc->code[proc->ip++];
 
-  switch (command)
+  switch (command & 0x1F)
   {
     #include "commands.h"
     default:
@@ -102,7 +112,13 @@ int dump_proc (processor *proc)
   {
     fprintf (log, "%02X ", ((unsigned char*)proc->code)[printer]);
   }
-  fprintf(log, "\n%*s", proc->ip*3, "^");
+  fprintf(log, "\n%*s\n", proc->ip*3, "^");
+
+  fprintf(log, "Stack: ");
+  for (int stk_elem = 0; stk_elem < proc->stk->capacity; stk_elem++)
+  {
+    fprintf (log, "%lu, ", proc->stk->buffer[stk_elem]);
+  }
 
   fprintf (log, "\n---------------------------------------------------\n</pre>");
 

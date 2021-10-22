@@ -16,7 +16,7 @@
     #define MAX_INFO
 #endif
 
-typedef uint64_t type_t;
+typedef int64_t type_t;
 
 #define TO_STRING(str) #str
 

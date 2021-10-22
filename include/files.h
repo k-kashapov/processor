@@ -65,7 +65,7 @@ struct file_info
 int read_all_lines (file_info *info, const char *file_name);
 
 /**
- * \brief Пробует открыть файл. В случае провала программа завершится
+ * \brief Пробует открыть файл.
  */
 int open_file (FILE **ptr, const char* file_name, const char* mode);
 
