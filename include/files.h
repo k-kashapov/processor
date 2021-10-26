@@ -38,7 +38,7 @@ struct string
 struct config
 {
     const char *input_file  = "source.txt";
-    const char *output_file = "result.txt";
+    const char *output_file = "code.asm";
 };
 
 /**

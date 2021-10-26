@@ -1,4 +1,4 @@
-#define DEF_CMD(num, name, argc, code) case CMD_##name: break;
+#define DEF_CMD(num, name, argc, code, hash) case CMD_##name: break;
 
 void _check_unique ()
 {

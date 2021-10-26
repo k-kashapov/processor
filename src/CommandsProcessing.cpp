@@ -1,12 +1,33 @@
 #include "Info.h"
-#include "enum.h"
 #include "Processor.h"
 #include "files.h"
 
-int read_code (processor *proc)
+const int CMD_MASK = 0x1F;
+
+int get_io_args (int argc, const char **argv, config *curr_config)
 {
-  FILE *code = fopen ("code.dead", "rb");
-  assert (code);
+  while (--argc > 0)
+  {
+    argv++;
+
+    if (!strncmp (*argv, "-i", 3))
+    {
+      curr_config->input_file = *(++argv);
+      argc--;
+    }
+    else if (!strncmp (*argv, "-o", 3))
+    {
+      curr_config->output_file = *(++argv);
+      argc--;
+    }
+  }
+  return 0;
+}
+
+int read_code (processor *proc, config *io_config)
+{
+  FILE *code = fopen (io_config->input_file, "rb");
+  assert (code && "file opened");
 
   proc->code = read_to_end (code);
   assert (proc->code);
@@ -30,7 +51,7 @@ int get_header (processor *proc)
   if (header.sign != Signature)
   {
     printf ("###########################\n");
-    printf ("FATAL: Invalid version\n");
+    printf ("FATAL: Invalid Signature\n");
     printf ("###########################\n");
     return INVALID_SIGNATURE;
   }
@@ -68,7 +89,8 @@ int run_binary (processor *proc)
 
       if (error)
       {
-        printf ("\nFATAL: command = %d at %d\n", proc->code[proc->ip - 1], proc->ip - 1);
+        printf ("\nFATAL: command = %d at %d\n",
+        proc->code[proc->ip - 1], proc->ip - 1);
         return error;
       }
   }
@@ -82,7 +104,7 @@ int process_command (processor *proc)
 
   unsigned char command = proc->code[proc->ip++];
 
-  switch (command & 0x1F)
+  switch (command & CMD_MASK)
   {
     #include "commands.h"
     default:
@@ -90,7 +112,7 @@ int process_command (processor *proc)
   }
 
   #ifdef PROC_DUMP
-    printf ("com = %02lX; val = %.3lf\n", command, (double) val / 1000);
+    printf ("com = %02x; val = %.3lf\n", command, (double) val / 1000);
   #endif
 
   return 0;
@@ -118,6 +140,18 @@ int dump_proc (processor *proc)
   for (int stk_elem = 0; stk_elem < proc->stk->capacity; stk_elem++)
   {
     fprintf (log, "%ld, ", proc->stk->buffer[stk_elem]);
+  }
+
+  fprintf(log, "\nRegs : ");
+  for (int reg = 0; reg < REG_NUM; reg++)
+  {
+    fprintf (log, "%c: %ld, ", 'a' + reg, proc->reg[reg]);
+  }
+
+  fprintf(log, "\nRAM: ");
+  for (int addr = 0; addr < RAM_MEM; addr++)
+  {
+    fprintf (log, "%ld, ", proc->RAM[addr]);
   }
 
   fprintf (log, "\n---------------------------------------------------\n</pre>");

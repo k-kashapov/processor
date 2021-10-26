@@ -1,5 +1,6 @@
-#include "Processor.h"
+#include "enum.h"
 #include "check_unique.h"
+#include "Processor.h"
 
 // Анекдот
 // Идёт грузин с бумерангом, весь в
@@ -13,19 +14,23 @@
 
 int main(int argc, const char** argv)
 {
-    processor proc = {};
-    stack_t proc_stk = {};
-    proc.stk = &proc_stk;
+  config io_config;
+  io_config.input_file = "code.asm";
+  get_io_args (argc, argv, &io_config);
 
-    read_code (&proc);
+  processor proc = {};
+  stack_t proc_stk = {};
+  proc.stk = &proc_stk;
 
-    int header_err = get_header (&proc);
-    if (header_err)
-      return header_err;
+  read_code (&proc, &io_config);
 
-    int runtime_err = run_binary (&proc);
-    if (runtime_err)
-      return runtime_err;
+  int header_err = get_header (&proc);
+  if (header_err)
+    return header_err;
 
-    return 0;
+  int runtime_err = run_binary (&proc);
+  if (runtime_err)
+    return runtime_err;
+
+  return 0;
 }

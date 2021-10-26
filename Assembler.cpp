@@ -1,5 +1,7 @@
-#include "SyntaxProcessing.h"
+#include "enum.h"
 #include "check_unique.h"
+#include "SyntaxProcessing.h"
+
 
 // Анекдот
 // Готовили американцы шпиона, чтобы послать на Украину с самого детства
@@ -17,11 +19,12 @@ int main (int argc, const char **argv)
 {
   file_info source;
   config io_config;
+  get_io_args (argc, argv, &io_config);
 
   read_all_lines (&source, io_config.input_file);
 
   FILE *output = NULL;
-  open_file (&output, "code.dead", "wb");
+  open_file (&output, io_config.output_file, "wb");
   if (!output)
     return OPEN_FILE_FAILED;
 

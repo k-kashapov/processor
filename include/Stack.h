@@ -53,6 +53,8 @@ typedef int64_t type_t;
     assert (buff);                                        \
     ptr = buff;
 
+#define MurmurHashStr(str) MurmurHash (str, strlen (str))
+
 struct stack_t
 {
     #ifdef CANARY_PROTECTION
@@ -100,7 +102,7 @@ enum ErrorCodes
 
 uint64_t StackDump (stack_t *stk, uint64_t err, const char *called_from, const int line_called_from);
 
-unsigned int MurmurHash (void *stk, int len);
+unsigned int MurmurHash (const void *stk, int len);
 
 uint64_t StackInit_ (stack_t *stk, const char *file_name = NULL, const char *func_name = NULL, const int line = -1, const char *name = NULL);
 

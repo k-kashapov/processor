@@ -1,7 +1,7 @@
 #pragma once
 
 const int Signature = 'KEEK';
-const int Version = 5;
+const int Version = 6;
 const int	RAM_MEM = 20;
 const int REG_NUM = 4;
 
