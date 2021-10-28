@@ -3,13 +3,19 @@ push 6
 push 2
 push -98
 
-
+; dsdad
 call :label
 
 push 3
 
+out
+hlt
+
 label:
 
 push 5
-
 push 8
+pop [ax]
+pop [ax]
+
+ret

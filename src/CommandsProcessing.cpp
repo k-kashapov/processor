@@ -2,6 +2,7 @@
 #include "Info.h"
 #include "Processor.h"
 #include "files.h"
+#include "time.h"
 
 const int CMD_MASK = 0x1F;
 
@@ -106,7 +107,7 @@ int process_command (processor *proc)
   unsigned char command = proc->code[proc->ip++];
 
   #ifdef PROC_DUMP
-    printf ("com = %02x;\n", command);
+    printf ("\ncom = %02x;\n", command);
   #endif
 
   switch (command & CMD_MASK)
@@ -165,5 +166,12 @@ int dump_proc (processor *proc)
 
   fclose (log);
 
+  return 0;
+}
+
+int dumb_sleep (double ms)
+{
+  double start = clock();
+  while (clock() - start < ms * 1000) ;
   return 0;
 }

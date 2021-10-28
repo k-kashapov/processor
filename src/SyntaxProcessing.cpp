@@ -31,7 +31,7 @@ int ProcessCommand (const char *text, FILE* output, JL_info *jl_arr, type_t *lin
   int max_line = *lines;
   long unsigned int curr_ip = ftell (output);
 
-  printf("addr = %#06lx; text = %*s; ",
+  printf("\naddr = %#06lx; text = %*s; ",
           curr_ip, MAX_NAME_LEN * 2, text);
 
   int scanned = sscanf (text, "%[a-zA-Z0-9]%n", command, &bytes_read);
@@ -45,6 +45,9 @@ int ProcessCommand (const char *text, FILE* output, JL_info *jl_arr, type_t *lin
   int cmd_len = 0;
   sscanf (text, "%s%n %n", command, &cmd_len, &bytes_read);
   text += bytes_read;
+
+  if (*command == ';') return 0;
+
   printf ("command = %*s; ", MAX_NAME_LEN, command);
 
   uint64_t command_hash = MurmurHash (command, cmd_len);

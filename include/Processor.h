@@ -2,6 +2,8 @@
 #include "Info.h"
 #include "files.h"
 
+//#define PROC_DUMP
+
 enum MASKS
 {
   MASK_IMM   = 0x40,
@@ -34,7 +36,8 @@ enum MASKS
         command, addr);                                                         \
         return INVALID_ARG;                                                     \
       }                                                                         \
-      val = proc->RAM[addr];                                                    \
+      val = proc->RAM [addr];                                                   \
+      dumb_sleep (500);       /*intentional sleep*/                             \
       proc->ip += 1;                                                            \
     }                                                                           \
     else if (CHECK_MASK (command, MASK_R2RAM))                                  \
@@ -46,7 +49,8 @@ enum MASKS
         command, reg);                                                          \
         return INVALID_ARG;                                                     \
       }                                                                         \
-      val = proc->RAM[proc->reg[reg]];                                          \
+      val = proc->RAM [proc->reg[reg]];                                         \
+      dumb_sleep (500);       /*intentional sleep*/                             \
       proc->ip += 1;                                                            \
     }                                                                           \
     else if (CHECK_MASK (command, MASK_REG))                                    \
@@ -98,9 +102,11 @@ enum MASKS
         command, addr);                                                         \
         return INVALID_ARG;                                                     \
       }                                                                         \
-                                                                                \
       if (CHECK_MASK (command, MASK_R2RAM))                                     \
-        proc->RAM[proc->reg[addr]] = pop_val;                                   \
+      {                                                                         \
+        proc->RAM [proc->reg[addr]] = pop_val;                                  \
+        dumb_sleep (500);       /*intentional sleep*/                           \
+      }                                                                         \
       else                                                                      \
         proc->reg[addr] = pop_val;                                              \
     }                                                                           \
@@ -114,7 +120,8 @@ enum MASKS
         return INVALID_ARG;                                                     \
       }                                                                         \
                                                                                 \
-      proc->RAM[addr] = pop_val;                                                \
+      proc->RAM [addr] = pop_val;                                               \
+      dumb_sleep (500);       /*intentional sleep*/                             \
     }                                                                           \
     proc->ip += 1;                                                              \
   }
@@ -160,19 +167,40 @@ enum MASKS
     printf ("%.3lf\n", ((double)num) / 1000);                                   \
   }
 
-#define hlt_code                                                                \
-  return CMD_hlt;
+#define hlt_code return CMD_hlt;
 
-#define call_action !StackPush (proc->stk, proc->ip)
+#define ret_code                                                                \
+  {                                                                             \
+    uint64_t pop_err = 0;                                                       \
+    type_t val = StackPop (proc->stk, &pop_err);                                \
+    printf("value to ret to = %lx\n", val);                                     \
+    if (pop_err)                                                                \
+    {                                                                           \
+      printf("RUNTIME ERROR: in function: out; error: %02lX\n", pop_err);       \
+      return pop_err;                                                           \
+    }                                                                           \
+    proc->ip = val;                                                             \
+}
 
-#define DEF_CMD(num, name, argc, code, hash)                                    \
-  case CMD_##name:                                                              \
-    code;                                                                       \
-    break;
+#define call_action !StackPush (proc->stk, proc->ip + sizeof (type_t))
+
+#ifdef PROC_DUMP
+  #define DEF_CMD(num, name, argc, code, hash)                                  \
+    case CMD_##name:                                                            \
+      printf("Command = " #name "\n");                                          \
+      code;                                                                     \
+      break;
+#else
+  #define DEF_CMD(num, name, argc, code, hash)                                  \
+    case CMD_##name:                                                            \
+      code;                                                                     \
+      break;
+#endif
 
 #define DEF_JMP_CMD(num, name, argc, action, hash)                              \
   case CMD_##name:                                                              \
     {                                                                           \
+      printf("Command = " #name "\n");                                          \
       type_t a = 0;                                                             \
       type_t b = 0;                                                             \
       if (argc > 0)                                                             \
@@ -186,14 +214,17 @@ enum MASKS
           return pop_err;                                                       \
         }                                                                       \
       }                                                                         \
-      if (action)                                                               \
+      uint64_t res = action;                                                    \
+      if (res)                                                                  \
       {                                                                         \
+        printf("JUMP from %x\n", proc->ip);                                     \
         val = *(type_t *)(proc->code + proc->ip);                               \
         proc->ip = val - sizeof (Header_t);                                     \
         printf ("Moved ip to %lx\n", val);                                      \
       }                                                                         \
       else                                                                      \
       {                                                                         \
+        printf ("JUMP condition not worked: " #action " result = %lu\n", res);  \
         proc->ip += sizeof (type_t);                                            \
       }                                                                         \
     }                                                                           \
@@ -208,7 +239,6 @@ enum ExitCodes
   INVALID_ARG       = -5,
 };
 
-#define PROC_DUMP
 
 struct processor
 {
@@ -217,7 +247,7 @@ struct processor
   int bytes_num;
   int ip;
   type_t reg[REG_NUM];
-  type_t RAM[RAM_MEM];
+  type_t RAM [RAM_MEM];
 };
 
 int get_io_args (int argc, const char **argv, config *curr_config);
@@ -231,3 +261,5 @@ int run_binary (processor *proc);
 int process_command (processor *proc);
 
 int dump_proc (processor *proc);
+
+int dumb_sleep (double ms);

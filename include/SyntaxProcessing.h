@@ -117,7 +117,7 @@ struct JL_info
       return INVALID_ARG;                                                       \
     }                                                                           \
     FPUT (CMD_##cmd | mask);                                                    \
-    printf ("code  = %02X; ", (unsigned char)(CMD_##cmd | mask));               \
+    printf ("code  = %02X;\n", (unsigned char)(CMD_##cmd | mask));              \
                                                                                 \
     int bytes_written = 1;                                                      \
                                                                                 \
@@ -148,9 +148,10 @@ struct JL_info
   }                                                                             \
   else
 
-#define DEF_JMP_CMD(code, name, argc, action, hash)                                     \
+#define DEF_JMP_CMD(code, name, argc, action, hash)                             \
     if (command_hash == hash)                                                   \
     {                                                                           \
+      printf ("code  = %02X;\n", (unsigned char)(code));                        \
       FPUT (code);                                                              \
       printf ("bytes = %02X ", code);                                           \
                                                                                 \
