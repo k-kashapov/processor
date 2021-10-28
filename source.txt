@@ -1,10 +1,15 @@
+push 4
+push 6
+push 2
+push -98
+
+
+call :label
+
+push 3
+
+label:
 
 push 5
-push 6
-pop [0]
-push 10
-push [0]
-mul
 
-out
-hlt
+push 8

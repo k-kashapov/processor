@@ -24,20 +24,21 @@ int get_io_args (int argc, const char **argv, config *curr_config)
   return 0;
 }
 
-int ProcessCommand (const char *text, FILE* output, Label_info *labels_arr)
+int ProcessCommand (const char *text, FILE* output, JL_info *jl_arr, type_t *lines)
 {
   char command[MAX_NAME_LEN] = {};
   int bytes_read = 0;
+  int max_line = *lines;
+  long unsigned int curr_ip = ftell (output);
 
   printf("addr = %#06lx; text = %*s; ",
-          ftell (output), MAX_NAME_LEN * 2, text);
+          curr_ip, MAX_NAME_LEN * 2, text);
 
   int scanned = sscanf (text, "%[a-zA-Z0-9]%n", command, &bytes_read);
   if (scanned && text[bytes_read] == ':')
   {
     text += bytes_read;
     ADD_LABEL (command)
-    putc ('\n', stdout);
     return 0;
   }
 
@@ -62,10 +63,16 @@ int ProcessCommand (const char *text, FILE* output, Label_info *labels_arr)
 int Assemble (file_info *source, FILE *output)
 {
   Label labels[MAX_LABELS_NUM] = {};
+  Jump  jumps[MAX_LABELS_NUM]  = {};
 
-  Label_info labels_arr = {};
-  labels_arr.labels = labels;
-  labels_arr.num = 0;
+  type_t *lines = (type_t *) calloc (source->lines_num + 1, sizeof (int));
+  lines[0] = source->lines_num;
+
+  printf ("lines num = %d\n", source->lines_num);
+
+  JL_info jl_arr = {};
+  jl_arr.labels = labels;
+  jl_arr.jumps = jumps;
 
   for (int printed_len = 0; printed_len < sizeof (Header_t); printed_len++)
   {
@@ -77,19 +84,20 @@ int Assemble (file_info *source, FILE *output)
 
   for (int ip = 0; ip < source->lines_num; ip++)
   {
-      last_cmd_len = ProcessCommand
-      (
-        source->strs[ip]->text, output, &labels_arr
-      );
+    lines[ip + 1] = ftell (output);
+    last_cmd_len = ProcessCommand
+    (
+      source->strs[ip]->text, output, &jl_arr, lines
+    );
 
-      if (last_cmd_len < 0)
-      {
-        printf ("\n###############\
-                 \nCOMPILATION ERROR: invalid command at ip %d\n", ip + 1);
-        return INVALID_SYNTAX;
-      }
+    if (last_cmd_len < 0)
+    {
+      printf ("\n###############\
+               \nCOMPILATION ERROR: invalid command at line %d\n", ip + 1);
+      return INVALID_SYNTAX;
+    }
 
-      char_num += last_cmd_len;
+    char_num += last_cmd_len;
   }
 
   fputc (CMD_hlt, output);
@@ -107,5 +115,55 @@ int Assemble (file_info *source, FILE *output)
 
   printf("bytes total = %d\n", char_num);
 
+  Link (output, lines, &jl_arr);
+
+  free (lines);
+  return 0;
+}
+
+int Link (FILE *output, type_t *lines, JL_info *jl_arr)
+{
+  printf ("Linking: \n");
+
+  for (int jmp = 0; jmp < jl_arr->jmp_num; jmp++)
+  {
+    int destination = jl_arr->jumps[jmp].destination;
+
+    if (destination > 0)
+    {
+      printf ("JMP to %d; dest ip = %ld; ", destination, lines[destination]);
+
+      fseek (output, GET_JMP_IP (jmp) + 1, SEEK_SET);
+      printf("print at %#06lx\nbytes = ", ftell (output));
+
+      FPRINT_BYTES (lines[destination]);
+      continue;
+    }
+
+    int lbl = 0;
+
+    for (lbl = 0; lbl < jl_arr->lbl_num; lbl++)
+    {
+      if (GET_JMP_HASH (jmp) == GET_LABEL_HASH (lbl))
+      {
+        printf ("JMP to %lx; dest ip = %ld; ",
+                GET_LABEL_IP (lbl), GET_JMP_IP (jmp) + 1);
+
+        fseek (output, GET_JMP_IP (jmp) + 1, SEEK_SET);
+
+        printf("print at %#06lx\nbytes = ", ftell (output));
+        FPRINT_BYTES (GET_LABEL_IP (lbl));
+        break;
+      }
+    }
+
+    if (lbl >= jl_arr->lbl_num)
+    {
+      printf ("\nCE: STRAY JUMP");
+      return -1;
+    }
+  }
+
+  printf("Linking Complete\n");
   return 0;
 }

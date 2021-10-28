@@ -1,3 +1,4 @@
+#include "enum.h"
 #include "Info.h"
 #include "Processor.h"
 #include "files.h"
@@ -45,7 +46,7 @@ int get_header (processor *proc)
   #ifdef PROC_DUMP
     printf ("sign = %X\n", header.sign);
     printf ("version = %x\n", header.ver);
-    printf ("bytes = %d\n", header.char_num);
+    printf ("bytes = %d\n------------\n", header.char_num);
   #endif
 
   if (header.sign != Signature)
@@ -89,8 +90,8 @@ int run_binary (processor *proc)
 
       if (error)
       {
-        printf ("\nFATAL: command = %d at %d\n",
-        proc->code[proc->ip - 1], proc->ip - 1);
+        printf ("\nFATAL: command = %d at %06X; error = %d\n",
+        proc->code[proc->ip - 1], proc->ip - 1, error);
         return error;
       }
   }
@@ -104,16 +105,19 @@ int process_command (processor *proc)
 
   unsigned char command = proc->code[proc->ip++];
 
+  #ifdef PROC_DUMP
+    printf ("com = %02x;\n", command);
+  #endif
+
   switch (command & CMD_MASK)
   {
     #include "commands.h"
+    #include "jump.h"
     default:
       return INVALID_CODE;
   }
 
-  #ifdef PROC_DUMP
-    printf ("com = %02x; val = %.3lf\n", command, (double) val / 1000);
-  #endif
+  printf ("val = %.3lf\n", (double) val / 1000);
 
   return 0;
 }
@@ -135,6 +139,9 @@ int dump_proc (processor *proc)
     fprintf (log, "%02X ", ((unsigned char*)proc->code)[printer]);
   }
   fprintf(log, "\n%*s\n", proc->ip*3, "^");
+
+  fprintf(log, "Stack size     = %d\n", proc->stk->size);
+  fprintf(log, "Stack capacity = %d\n", proc->stk->capacity);
 
   fprintf(log, "Stack: ");
   for (int stk_elem = 0; stk_elem < proc->stk->capacity; stk_elem++)

@@ -163,9 +163,40 @@ enum MASKS
 #define hlt_code                                                                \
   return CMD_hlt;
 
+#define call_action !StackPush (proc->stk, proc->ip)
+
 #define DEF_CMD(num, name, argc, code, hash)                                    \
   case CMD_##name:                                                              \
     code;                                                                       \
+    break;
+
+#define DEF_JMP_CMD(num, name, argc, action, hash)                              \
+  case CMD_##name:                                                              \
+    {                                                                           \
+      type_t a = 0;                                                             \
+      type_t b = 0;                                                             \
+      if (argc > 0)                                                             \
+      {                                                                         \
+        uint64_t pop_err = 0;                                                   \
+        b = StackPop (proc->stk, &pop_err);                                     \
+        a = StackPop (proc->stk, &pop_err);                                     \
+        if (pop_err)                                                            \
+        {                                                                       \
+          printf("RUNTIME ERROR: in function: out; error: %02lX\n", pop_err);   \
+          return pop_err;                                                       \
+        }                                                                       \
+      }                                                                         \
+      if (action)                                                               \
+      {                                                                         \
+        val = *(type_t *)(proc->code + proc->ip);                               \
+        proc->ip = val - sizeof (Header_t);                                     \
+        printf ("Moved ip to %lx\n", val);                                      \
+      }                                                                         \
+      else                                                                      \
+      {                                                                         \
+        proc->ip += sizeof (type_t);                                            \
+      }                                                                         \
+    }                                                                           \
     break;
 
 enum ExitCodes
