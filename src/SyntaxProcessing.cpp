@@ -69,6 +69,7 @@ int Assemble (file_info *source, FILE *output)
   Jump  jumps[MAX_LABELS_NUM]  = {};
 
   type_t *lines = (type_t *) calloc (source->lines_num + 1, sizeof (int));
+
   lines[0] = source->lines_num;
 
   printf ("lines num = %d\n", source->lines_num);
@@ -102,6 +103,7 @@ int Assemble (file_info *source, FILE *output)
 
     char_num += last_cmd_len;
   }
+  printf("output [%p], line = %ld\n", output, __LINE__);
 
   Header_t header;
   header.char_num = char_num;
@@ -112,12 +114,16 @@ int Assemble (file_info *source, FILE *output)
     fputc (*header_ptr, output);
     header_ptr++;
   }
+  printf("output [%p], line = %ld\n", output, __LINE__);
+
 
   printf("bytes total = %d\n", char_num);
 
+  printf("output [%p], line = %ld\n", output, __LINE__);
+
   Link (output, lines, &jl_arr);
 
-  //free (lines);
+  free (lines);
   return 0;
 }
 

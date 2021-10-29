@@ -28,9 +28,15 @@ int main (int argc, const char **argv)
   if (!output)
     return OPEN_FILE_FAILED;
 
+  printf("output [%p], line = %ld\n", output, __LINE__);
+
+
   Assemble (&source, output);
+  printf("output [%p], line = %ld\n", output, __LINE__);
 
   fclose (output);
+
+  printf("output [%p], line = %ld\n", output, __LINE__);
 
   return 0;
 }
