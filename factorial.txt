@@ -1,0 +1,31 @@
+in
+
+pop ax
+push ax
+pop bx
+call :fact
+push bx
+
+out
+hlt
+
+fact:
+  ; decrement ax
+  push ax
+  push 1
+  sub
+
+  ; save ax to register
+  pop ax
+  push ax
+
+  ; multiply bx by ax and save
+  push bx
+  mul
+  pop bx
+
+  ; check if ax is 1 and end if true
+  push ax
+  push 1
+  jn :fact
+ret

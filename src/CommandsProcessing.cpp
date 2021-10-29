@@ -118,7 +118,9 @@ int process_command (processor *proc)
       return INVALID_CODE;
   }
 
-  printf ("val = %.3lf\n", (double) val / 1000);
+  #ifdef PROC_DUMP
+    printf ("val = %.3lf\n", (double) val / 1000);
+  #endif
 
   return 0;
 }

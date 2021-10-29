@@ -13,6 +13,7 @@ enum COMPILATION_ERRORS
   WRITE_FALIED     = -2,
   INVALID_ARG      = -3,
   LABEL_DUPLICATE  = -4,
+  STRAY_JUMP       = -5,
 };
 
 enum MASKS
@@ -108,12 +109,11 @@ struct JL_info
     GET_MASK ("[%1[a-d]x]", (char *)&tmp_ch, MASK_R2RAM)                        \
     GET_MASK (  "%1[a-d]x", (char *)&tmp_ch, MASK_REG)                          \
     {                                                                           \
-      printf("\nCE: IVALID ARGUMENT command = %s\n", command);                  \
-      return INVALID_ARG;                                                       \
+      scanned = EOF;                                                            \
     }                                                                           \
     if (scanned == EOF && argc > 0)                                             \
     {                                                                           \
-      printf("\nCE: IVALID ARGUMENT command = %s\n", command);                  \
+      printf("\nCE: INVALID ARGUMENT command = %s\n", command);                 \
       return INVALID_ARG;                                                       \
     }                                                                           \
     FPUT (CMD_##cmd | mask);                                                    \
@@ -177,7 +177,7 @@ struct JL_info
         GET_JMP_IP (jl_arr->jmp_num) = curr_ip;                                 \
         jl_arr->jmp_num++;                                                      \
         FPRINT_BYTES (dummy);                                                   \
-        return sizeof (type_t);                                                 \
+        return sizeof (type_t) + 1;                                             \
       }                                                                         \
       uint64_t arg_hash = MurmurHash (jmp_arg, arg_len - 1);                    \
                                                                                 \
@@ -185,16 +185,17 @@ struct JL_info
       {                                                                         \
         if (GET_LABEL_HASH (iter) == arg_hash)                                  \
         {                                                                       \
-          FPRINT_BYTES (GET_LABEL_IP (iter));                                   \
+          type_t dest_ip = GET_LABEL_IP (iter);                                 \
+          FPRINT_BYTES (dest_ip);                                               \
           putc ('\n', stdout);                                                  \
-          return sizeof (type_t);                                               \
+          return sizeof (type_t) + 1;                                           \
         }                                                                       \
       }                                                                         \
       FPRINT_BYTES (dummy);                                                     \
       GET_JMP_IP (jl_arr->jmp_num) = curr_ip;                                   \
       GET_JMP_HASH (jl_arr->jmp_num) = arg_hash;                                \
       jl_arr->jmp_num++;                                                        \
-      return sizeof (type_t);                                                   \
+      return sizeof (type_t) + 1;                                               \
     }                                                                           \
     else
 

@@ -32,7 +32,7 @@ int ProcessCommand (const char *text, FILE* output, JL_info *jl_arr, type_t *lin
   long unsigned int curr_ip = ftell (output);
 
   printf("\naddr = %#06lx; text = %*s; ",
-          curr_ip, MAX_NAME_LEN * 2, text);
+          curr_ip - sizeof (Header_t), MAX_NAME_LEN * 2, text);
 
   int scanned = sscanf (text, "%[a-zA-Z0-9]%n", command, &bytes_read);
   if (scanned && text[bytes_read] == ':')
@@ -103,9 +103,6 @@ int Assemble (file_info *source, FILE *output)
     char_num += last_cmd_len;
   }
 
-  fputc (CMD_hlt, output);
-  char_num++;
-
   Header_t header;
   header.char_num = char_num;
   char *header_ptr = (char *)&header;
@@ -120,7 +117,7 @@ int Assemble (file_info *source, FILE *output)
 
   Link (output, lines, &jl_arr);
 
-  free (lines);
+  //free (lines);
   return 0;
 }
 
@@ -134,7 +131,7 @@ int Link (FILE *output, type_t *lines, JL_info *jl_arr)
 
     if (destination > 0)
     {
-      printf ("JMP to %d; dest ip = %ld; ", destination, lines[destination]);
+      printf ("JMP to %x; dest ip = %lx; ", destination, lines[destination]);
 
       fseek (output, GET_JMP_IP (jmp) + 1, SEEK_SET);
       printf("print at %#06lx\nbytes = ", ftell (output));
@@ -149,7 +146,7 @@ int Link (FILE *output, type_t *lines, JL_info *jl_arr)
     {
       if (GET_JMP_HASH (jmp) == GET_LABEL_HASH (lbl))
       {
-        printf ("JMP to %lx; dest ip = %ld; ",
+        printf ("HASH FOUND: JMP to %lx; dest ip = %lx; ",
                 GET_LABEL_IP (lbl), GET_JMP_IP (jmp) + 1);
 
         fseek (output, GET_JMP_IP (jmp) + 1, SEEK_SET);
@@ -163,7 +160,7 @@ int Link (FILE *output, type_t *lines, JL_info *jl_arr)
     if (lbl >= jl_arr->lbl_num)
     {
       printf ("\nCE: STRAY JUMP");
-      return -1;
+      return STRAY_JUMP;
     }
   }
 
