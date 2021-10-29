@@ -3,9 +3,11 @@
 #include "Stack.h"
 #include "enum.h"
 #include "files.h"
+#include <fcntl.h>
 
-const int MAX_NAME_LEN   = 8;
-const int MAX_LABELS_NUM = 32;
+const int MAX_NAME_LEN   =   8;
+const int MAX_LABELS_NUM =  32;
+const int MAX_BINARY_LEN = 512;
 
 enum COMPILATION_ERRORS
 {
@@ -18,10 +20,11 @@ enum COMPILATION_ERRORS
 
 enum MASKS
 {
-  MASK_IMM   = 0x40,
-  MASK_REG   = 0x20,
-  MASK_I2RAM = 0xC0,
-  MASK_R2RAM = 0xA0,
+  MASK_IMM   = 0x40, // Immediate
+  MASK_REG   = 0x20, // To register
+  MASK_I2RAM = 0xC0, // Immediate to RAM
+  MASK_R2RAM = 0xA0, // Register to RAM
+  MASK_S2RAM = 0xE0, // Summ ax+4 to RAM
 };
 
 struct Label
@@ -50,26 +53,21 @@ struct JL_info
 #define GET_JMP_HASH(addr) jl_arr->jumps[addr].name_hash
 #define GET_JMP_IP(addr) jl_arr->jumps[addr].ip
 
+#define ARRAYS                                                                  \
+  char *binary, char *binary_arr, JL_info *jl_arr, type_t *lines
 
-#define FPUT(ch)                                                                \
-  int printed = fputc (ch, output);                                             \
-  if (printed == EOF)                                                           \
+#define SPRINT_BYTES(val)                                                       \
   {                                                                             \
-    printf("\nCE: WRITE TO FILE FAILED\n");                                     \
-    return WRITE_FALIED;                                                        \
+    char *_str = (char *)&val;                                                  \
+    for (int i = 0; i < sizeof (val); i++)                                      \
+    {                                                                           \
+      binary[i] = _str[i];                                                      \
+      printf ("%02X ", (unsigned char)binary[i]);                               \
+    }                                                                           \
+    putc ('\n', stdout);                                                        \
   }
 
-#define FPRINT_BYTES(val)                                                       \
-  for (int i = 0; i < sizeof (val); i++)                                        \
-  {                                                                             \
-    unsigned char val_byte = (unsigned char) val;                               \
-    FPUT (val_byte);                                                            \
-    printf ("%02X ", val_byte);                                                 \
-                                                                                \
-    val >>= 8;                                                                  \
-  }                                                                             \
-  putc ('\n', stdout);
-
+#define SPUT(val) *binary++ = (unsigned char)val;
 
 #define GET_MASK(format, tmp_var, new_mask)                                     \
   if (scanned = sscanf (text, format, tmp_var))                                 \
@@ -99,15 +97,22 @@ struct JL_info
 #define DEF_CMD(num, cmd, argc, code, hash)                                     \
   if (hash == command_hash)                                                     \
   {                                                                             \
-    int tmp_ch = 0;                                                             \
+    char tmp_ch = 0;                                                            \
+    int tmp_int = 0;                                                            \
     double tmp_lf = 0;                                                          \
-    char mask = 0x00;                                                           \
+    unsigned char mask = 0x00;                                                  \
     const char *format_str = "";                                                \
     int scanned = 0;                                                            \
-    GET_MASK (      "[%d]",         &tmp_ch, MASK_I2RAM)                        \
-    GET_MASK (       "%lf",         &tmp_lf, MASK_IMM)                          \
-    GET_MASK ("[%1[a-d]x]", (char *)&tmp_ch, MASK_R2RAM)                        \
-    GET_MASK (  "%1[a-d]x", (char *)&tmp_ch, MASK_REG)                          \
+    if (sscanf (text, "[%1[a-d]x + %d]", &tmp_ch, &tmp_int) == 2)               \
+    {                                                                           \
+      mask = MASK_S2RAM;                                                        \
+      format_str = "[%1[a-d]x + %d]";                                           \
+    }                                                                           \
+    else                                                                        \
+    GET_MASK (      "[%d]", &tmp_int, MASK_I2RAM)                               \
+    GET_MASK (       "%lf",  &tmp_lf,   MASK_IMM)                               \
+    GET_MASK ("[%1[a-d]x]",  &tmp_ch, MASK_R2RAM)                               \
+    GET_MASK (  "%1[a-d]x",  &tmp_ch,   MASK_REG)                               \
     {                                                                           \
       scanned = EOF;                                                            \
     }                                                                           \
@@ -116,7 +121,7 @@ struct JL_info
       printf("\nCE: INVALID ARGUMENT command = %s\n", command);                 \
       return INVALID_ARG;                                                       \
     }                                                                           \
-    FPUT (CMD_##cmd | mask);                                                    \
+    SPUT (CMD_##cmd | mask);                                                    \
     printf ("code  = %02X;\n", (unsigned char)(CMD_##cmd | mask));              \
                                                                                 \
     int bytes_written = 1;                                                      \
@@ -124,22 +129,33 @@ struct JL_info
     for (int arg = 0; arg < argc; arg++)                                        \
     {                                                                           \
       int bytes_read = 0;                                                       \
-                                                                                \
-      if (mask == MASK_IMM)                                                     \
+      if (mask == MASK_S2RAM)                                                   \
+      {                                                                         \
+        char regv = 0;                                                          \
+        type_t offset = 0;                                                      \
+        sscanf (text, format_str, &regv, &offset);                              \
+        printf("args = %d and %ld; bytes = ", regv, offset);                    \
+        SPRINT_BYTES (regv);                                                    \
+        binary += 1;                                                            \
+        bytes_written += 1;                                                     \
+        SPRINT_BYTES (offset);                                                  \
+        bytes_written += sizeof(type_t);                                        \
+      }                                                                         \
+      else if (mask == MASK_IMM)                                                \
       {                                                                         \
         double argv = 0;                                                        \
-        sscanf (text, format_str, &argv, &bytes_read);                          \
+        sscanf (text, format_str, &argv);                                       \
         printf("value = %06.3lf; bytes = ", argv);                              \
         type_t value = (type_t)(argv * 1000);                                   \
-        FPRINT_BYTES (value);                                                   \
+        SPRINT_BYTES (value);                                                   \
         bytes_written += sizeof(type_t);                                        \
       }                                                                         \
       else                                                                      \
       {                                                                         \
         char argv = 0;                                                          \
-        sscanf (text, format_str, &argv, &bytes_read);                          \
+        sscanf (text, format_str, &argv);                                       \
         printf("arg = %d; bytes = ", argv);                                     \
-        FPRINT_BYTES (argv);                                                    \
+        SPRINT_BYTES (argv);                                                    \
         bytes_written += 1;                                                     \
       }                                                                         \
       text += bytes_read;                                                       \
@@ -152,7 +168,7 @@ struct JL_info
     if (command_hash == hash)                                                   \
     {                                                                           \
       printf ("code  = %02X;\n", (unsigned char)(code));                        \
-      FPUT (code);                                                              \
+      SPUT (code);                                                              \
       printf ("bytes = %02X ", code);                                           \
                                                                                 \
       char jmp_arg[MAX_NAME_LEN] = {};                                          \
@@ -176,7 +192,7 @@ struct JL_info
         jl_arr->jumps[jl_arr->jmp_num].destination = dest_line;                 \
         GET_JMP_IP (jl_arr->jmp_num) = curr_ip;                                 \
         jl_arr->jmp_num++;                                                      \
-        FPRINT_BYTES (dummy);                                                   \
+        SPRINT_BYTES (dummy);                                                   \
         return sizeof (type_t) + 1;                                             \
       }                                                                         \
       uint64_t arg_hash = MurmurHash (jmp_arg, arg_len - 1);                    \
@@ -186,12 +202,12 @@ struct JL_info
         if (GET_LABEL_HASH (iter) == arg_hash)                                  \
         {                                                                       \
           type_t dest_ip = GET_LABEL_IP (iter);                                 \
-          FPRINT_BYTES (dest_ip);                                               \
+          SPRINT_BYTES (dest_ip);                                               \
           putc ('\n', stdout);                                                  \
           return sizeof (type_t) + 1;                                           \
         }                                                                       \
       }                                                                         \
-      FPRINT_BYTES (dummy);                                                     \
+      SPRINT_BYTES (dummy);                                                     \
       GET_JMP_IP (jl_arr->jmp_num) = curr_ip;                                   \
       GET_JMP_HASH (jl_arr->jmp_num) = arg_hash;                                \
       jl_arr->jmp_num++;                                                        \
@@ -201,8 +217,8 @@ struct JL_info
 
 int get_io_args (int argc, const char **argv, config *curr_config);
 
-int ProcessCommand (const char *text, FILE* output, JL_info *jl_arr, type_t *lines);
+int ProcessCommand (const char *text, FILE *output, JL_info *jl_arr, type_t *lines);
 
-int Assemble (file_info *source, FILE *output);
+int Assemble (file_info *source, char *binary_arr);
 
-int Link (FILE *output, type_t *lines, JL_info *jl_arr);
+int Link (char *binary, char *binary_arr, type_t *lines, JL_info *jl_arr);

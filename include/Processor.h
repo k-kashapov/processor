@@ -2,7 +2,7 @@
 #include "Info.h"
 #include "files.h"
 
-//#define PROC_DUMP
+#define PROC_DUMP
 
 enum MASKS
 {
@@ -10,6 +10,7 @@ enum MASKS
   MASK_REG   = 0x20,
   MASK_I2RAM = 0xC0,
   MASK_R2RAM = 0xA0,
+  MASK_S2RAM = 0xE0,
 };
 
 #define CHECK_MASK(val, msk) ((val & msk) == msk)
@@ -27,7 +28,23 @@ enum MASKS
 
 #define push_code                                                               \
   {                                                                             \
-    if (CHECK_MASK (command, MASK_I2RAM))                                       \
+    if (CHECK_MASK (command, MASK_S2RAM))                                       \
+    {                                                                           \
+      char reg = *(proc->code + proc->ip) - 'a';                                \
+      if (reg < 0 || reg > REG_NUM)                                             \
+      {                                                                         \
+        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",                \
+        command, reg);                                                          \
+        return INVALID_ARG;                                                     \
+      }                                                                         \
+      type_t addr = proc->reg[reg];                                             \
+      proc->ip += 1;                                                            \
+      addr += *(type_t *)(proc->code + proc->ip);                               \
+      val = proc->RAM[addr];                                                    \
+      dumb_sleep (500);       /*intentional sleep*/                             \
+      proc->ip += sizeof (type_t);                                              \
+    }                                                                           \
+    else if (CHECK_MASK (command, MASK_I2RAM))                                  \
     {                                                                           \
       char addr = *(proc->code + proc->ip);                                     \
       if (addr < 0 || addr > RAM_MEM)                                           \
@@ -36,7 +53,7 @@ enum MASKS
         command, addr);                                                         \
         return INVALID_ARG;                                                     \
       }                                                                         \
-      val = proc->RAM [addr];                                                   \
+      val = proc->RAM[addr];                                                    \
       dumb_sleep (500);       /*intentional sleep*/                             \
       proc->ip += 1;                                                            \
     }                                                                           \
@@ -49,7 +66,7 @@ enum MASKS
         command, reg);                                                          \
         return INVALID_ARG;                                                     \
       }                                                                         \
-      val = proc->RAM [proc->reg[reg]];                                         \
+      val = proc->RAM[proc->reg[reg]];                                          \
       dumb_sleep (500);       /*intentional sleep*/                             \
       proc->ip += 1;                                                            \
     }                                                                           \
@@ -93,7 +110,26 @@ enum MASKS
       return pop_err;                                                           \
     }                                                                           \
                                                                                 \
-    if (CHECK_MASK (command, MASK_REG) || CHECK_MASK (command, MASK_R2RAM))     \
+    if (CHECK_MASK (command, MASK_S2RAM))                                       \
+    {                                                                           \
+      char reg = *(proc->code + proc->ip) - 'a';                                \
+      proc->ip += 1;                                                            \
+      if (reg < 0 || reg > REG_NUM)                                             \
+      {                                                                         \
+        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",                \
+        command, reg);                                                          \
+        return INVALID_ARG;                                                     \
+      }                                                                         \
+                                                                                \
+      type_t addr = proc->reg[reg] / 1000;                                      \
+      type_t offset = *(type_t *)(proc->code + proc->ip);                       \
+      addr += offset;                                                           \
+                                                                                \
+      dumb_sleep (500);       /*intentional sleep*/                             \
+      proc->RAM[addr] = pop_val;                                                \
+      proc->ip += sizeof (type_t) - 1;                                          \
+    }                                                                           \
+    else if (CHECK_MASK (command, MASK_REG) || CHECK_MASK (command, MASK_R2RAM))\
     {                                                                           \
       char addr = *(proc->code + proc->ip) - 'a';                               \
       if (addr < 0 || addr > REG_NUM)                                           \
@@ -104,7 +140,7 @@ enum MASKS
       }                                                                         \
       if (CHECK_MASK (command, MASK_R2RAM))                                     \
       {                                                                         \
-        proc->RAM [proc->reg[addr]] = pop_val;                                  \
+        proc->RAM[proc->reg[addr]] = pop_val;                                   \
         dumb_sleep (500);       /*intentional sleep*/                           \
       }                                                                         \
       else                                                                      \
@@ -120,7 +156,7 @@ enum MASKS
         return INVALID_ARG;                                                     \
       }                                                                         \
                                                                                 \
-      proc->RAM [addr] = pop_val;                                               \
+      proc->RAM[addr] = pop_val;                                                \
       dumb_sleep (500);       /*intentional sleep*/                             \
     }                                                                           \
     proc->ip += 1;                                                              \
@@ -290,7 +326,7 @@ struct processor
   int bytes_num;
   int ip;
   type_t reg[REG_NUM];
-  type_t RAM [RAM_MEM];
+  type_t RAM[RAM_MEM];
 };
 
 int get_io_args (int argc, const char **argv, config *curr_config);

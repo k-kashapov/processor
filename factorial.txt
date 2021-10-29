@@ -27,5 +27,5 @@ fact:
   ; check if ax is 1 and end if true
   push ax
   push 1
-  jn :fact
+  ja :fact
 ret

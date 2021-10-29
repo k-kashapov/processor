@@ -2,7 +2,6 @@
 #include "check_unique.h"
 #include "SyntaxProcessing.h"
 
-
 // Анекдот
 // Готовили американцы шпиона, чтобы послать на Украину с самого детства
 // взращивали его, научили говорить по-украински
@@ -23,20 +22,23 @@ int main (int argc, const char **argv)
 
   read_all_lines (&source, io_config.input_file);
 
-  FILE *output = NULL;
-  open_file (&output, io_config.output_file, "wb");
-  if (!output)
-    return OPEN_FILE_FAILED;
+  char binary_arr[MAX_BINARY_LEN] = {};
 
-  printf("output [%p], line = %ld\n", output, __LINE__);
+  int char_num = Assemble (&source, binary_arr);
+  if (char_num < 1)
+  {
+    printf("INVALID SYNTAX\n");
+    return INVALID_SYNTAX;
+  }
+
+  printf ("char num = %d\n", char_num);
+
+  FILE *output = fopen (io_config.output_file, "wb");
 
 
-  Assemble (&source, output);
-  printf("output [%p], line = %ld\n", output, __LINE__);
+  fwrite (binary_arr, 1, char_num, output);
 
   fclose (output);
-
-  printf("output [%p], line = %ld\n", output, __LINE__);
 
   return 0;
 }

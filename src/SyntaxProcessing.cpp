@@ -24,12 +24,13 @@ int get_io_args (int argc, const char **argv, config *curr_config)
   return 0;
 }
 
-int ProcessCommand (const char *text, FILE* output, JL_info *jl_arr, type_t *lines)
+int ProcessCommand (const char *text, ARRAYS)
 {
   char command[MAX_NAME_LEN] = {};
   int bytes_read = 0;
   int max_line = *lines;
-  long unsigned int curr_ip = ftell (output);
+
+  long unsigned int curr_ip = binary - binary_arr;
 
   printf("\naddr = %#06lx; text = %*s; ",
           curr_ip - sizeof (Header_t), MAX_NAME_LEN * 2, text);
@@ -63,12 +64,14 @@ int ProcessCommand (const char *text, FILE* output, JL_info *jl_arr, type_t *lin
   return 1;
 }
 
-int Assemble (file_info *source, FILE *output)
+int Assemble (file_info *source, char *binary_arr)
 {
   Label labels[MAX_LABELS_NUM] = {};
-  Jump  jumps[MAX_LABELS_NUM]  = {};
+  Jump   jumps[MAX_LABELS_NUM] = {};
 
-  type_t *lines = (type_t *) calloc (source->lines_num + 1, sizeof (int));
+  type_t *lines = (type_t *) calloc (source->lines_num + 1, sizeof (type_t));
+
+  char *binary = binary_arr + sizeof (Header_t);
 
   lines[0] = source->lines_num;
 
@@ -78,20 +81,15 @@ int Assemble (file_info *source, FILE *output)
   jl_arr.labels = labels;
   jl_arr.jumps = jumps;
 
-  for (int printed_len = 0; printed_len < sizeof (Header_t); printed_len++)
-  {
-    fputc (0, output);
-  }
-
   int char_num = 0;
   int last_cmd_len = 0;
 
   for (int ip = 0; ip < source->lines_num; ip++)
   {
-    lines[ip + 1] = ftell (output);
+    lines[ip + 1] = binary - binary_arr;
     last_cmd_len = ProcessCommand
     (
-      source->strs[ip]->text, output, &jl_arr, lines
+      source->strs[ip]->text, binary, binary_arr, &jl_arr, lines
     );
 
     if (last_cmd_len < 0)
@@ -101,33 +99,28 @@ int Assemble (file_info *source, FILE *output)
       return INVALID_SYNTAX;
     }
 
+    binary += last_cmd_len;
     char_num += last_cmd_len;
   }
-  printf("output [%p], line = %ld\n", output, __LINE__);
 
   Header_t header;
   header.char_num = char_num;
-  char *header_ptr = (char *)&header;
 
-  fseek (output, SEEK_SET, 0);
-  for (int i = 0; i < sizeof (header); i++) {
-    fputc (*header_ptr, output);
-    header_ptr++;
-  }
-  printf("output [%p], line = %ld\n", output, __LINE__);
+  printf ("Header:\n");
+
+  binary = binary_arr;
+  SPRINT_BYTES (header);
 
 
+  Link (binary, binary_arr, lines, &jl_arr);
   printf("bytes total = %d\n", char_num);
 
-  printf("output [%p], line = %ld\n", output, __LINE__);
-
-  Link (output, lines, &jl_arr);
-
   free (lines);
-  return 0;
+
+  return char_num + sizeof (Header_t);
 }
 
-int Link (FILE *output, type_t *lines, JL_info *jl_arr)
+int Link (char *binary, char *binary_arr, type_t *lines, JL_info *jl_arr)
 {
   printf ("Linking: \n");
 
@@ -137,12 +130,12 @@ int Link (FILE *output, type_t *lines, JL_info *jl_arr)
 
     if (destination > 0)
     {
-      printf ("JMP to %x; dest ip = %lx; ", destination, lines[destination]);
+      printf ("LINE JMP to %x; dest ip = %lx; ", destination, lines[destination]);
 
-      fseek (output, GET_JMP_IP (jmp) + 1, SEEK_SET);
-      printf("print at %#06lx\nbytes = ", ftell (output));
+      binary = binary_arr + (GET_JMP_IP (jmp) + 1);
+      printf("print at %#06lx\nbytes = ", binary - binary_arr);
 
-      FPRINT_BYTES (lines[destination]);
+      SPRINT_BYTES (lines[destination]);
       continue;
     }
 
@@ -155,10 +148,10 @@ int Link (FILE *output, type_t *lines, JL_info *jl_arr)
         printf ("HASH FOUND: JMP to %lx; dest ip = %lx; ",
                 GET_LABEL_IP (lbl), GET_JMP_IP (jmp) + 1);
 
-        fseek (output, GET_JMP_IP (jmp) + 1, SEEK_SET);
+        binary = binary_arr + (GET_JMP_IP (jmp) + 1);
 
-        printf("print at %#06lx\nbytes = ", ftell (output));
-        FPRINT_BYTES (GET_LABEL_IP (lbl));
+        printf("print at %#06lx\nbytes = ", binary - binary_arr);
+        SPRINT_BYTES (GET_LABEL_IP (lbl));
         break;
       }
     }
