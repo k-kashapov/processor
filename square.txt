@@ -1,0 +1,117 @@
+in
+in
+in
+
+pop cx
+pop bx
+pop ax
+
+push ax
+push 0
+je :solveLin
+
+call :findD
+
+push dx
+push 0
+
+ja :solveQuadr
+
+push dx
+push 0
+jb :noRoots
+
+push dx
+push 0
+je :solveD0
+
+findD:
+    push bx
+    push bx
+    mul
+
+    push ax
+    push cx
+    push 4
+    mul
+    mul
+    sub
+    pop dx
+    ret
+
+solveQuadr:
+    push 2 ; 2 roots
+    out
+
+    push dx
+    sqrt
+    pop dx
+
+    push dx
+    push b
+    sub
+    push a
+    push 2
+    mul
+    div
+
+    out ; x1
+
+    push dx ; sqrt(dx)
+    push bx;
+    add
+    push a
+    push -2
+    mul
+    div     ; (b + sqrt(d))/(-2a)
+
+    out ; x2
+    hlt
+
+noRoots:
+    push -1 ; no roots
+    out
+    hlt
+
+solveD0:
+    push 1 ; one root
+    out
+
+    push bx
+    push -1
+    mul      ; -b
+
+    push a
+    push 2
+    mul      ; 2a
+
+    div      ; x = -b/2a
+    out
+    hlt
+
+solveLin:
+    push bx
+    push 0
+    je :checkB0C0 ; if b = 0
+
+    push 1 ; one root
+    out
+
+    push cx
+
+    push bx
+    push -1
+    mul
+
+    div  ; x = -c/b
+    out
+    hlt
+
+checkB0C0:
+    push cx
+    push 0
+    jn :noRoots ; b = 0, c != 0
+
+    push 100 ; inf roots
+    out
+    hlt

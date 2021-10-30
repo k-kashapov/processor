@@ -10,6 +10,11 @@ out
 hlt
 
 fact:
+  ; check if ax is 1 and end if true
+  push ax
+  push 1
+  jbe :konec
+
   ; decrement ax
   push ax
   push 1
@@ -23,9 +28,71 @@ fact:
   push bx
   mul
   pop bx
+  call :fact
 
-  ; check if ax is 1 and end if true
-  push ax
-  push 1
-  ja :fact
-ret
+konec:
+  ret
+
+; #######################
+  ; printing 2nd:
+    push [3] ; center y
+    push [0] ; sin fi
+    sub      ; -
+    push ax  ; pixels in line
+    mul      ; * = new y
+
+    push [1] ; cos fi
+    push [2] ; x center
+    sub      ; -
+    add      ; add y to x
+
+    out ; debug
+
+    push cx  ; video_mem
+    add      ; offset in video
+
+    pop ex   ; saving in ex
+    push 42  ; pushing asterisk
+    pop [ex] ; saving to video mem
+
+    ; printing 3rd:
+    push [3] ; center y
+    push [1] ; cos fi
+    add      ; +
+    push ax  ; pixels in line
+    mul      ; * = new y
+
+    push [0] ; sin fi
+    push [2] ; x center
+    add      ; +
+    add      ; add y to x
+
+    out ; debug
+
+    push cx  ; video_mem
+    add      ; offset in video
+
+    pop ex   ; saving in ex
+    push 42  ; pushing asterisk
+    pop [ex] ; saving to video mem
+
+    ; printing 4th:
+    push [3] ; center y
+    push [1] ; cos fi
+    sub      ; -
+    push ax  ; pixels in line
+    mul      ; * = new y
+
+    push [0] ; sin fi
+    push [2] ; x center
+    sub      ; -
+    add      ; add y to x
+
+    out ; debug
+
+    push cx  ; video_mem
+    add      ; offset in video
+
+    pop ex   ; saving in ex
+    push 42  ; pushing asterisk
+    pop [ex] ; saving to video mem

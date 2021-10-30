@@ -1,8 +1,9 @@
 #include "Stack.h"
 #include "Info.h"
 #include "files.h"
+#include "math.h"
 
-#define PROC_DUMP
+//#define PROC_DUMP
 
 enum MASKS
 {
@@ -12,6 +13,24 @@ enum MASKS
   MASK_R2RAM = 0xA0,
   MASK_S2RAM = 0xE0,
 };
+
+#define GET_NEXT_CHAR                                                           \
+  addr = *(proc->code + proc->ip) - 'a';                                        \
+  if (addr < 0 || addr > REG_NUM)                                               \
+  {                                                                             \
+    printf("RE: INVALID ARGUMENT; command = %d; arg = %ld\n",                   \
+    command, addr);                                                             \
+    return NULL;                                                                \
+  }
+
+#define GET_NEXT_TYPE_T                                                         \
+  addr = *(type_t *)(proc->code + proc->ip) / 1000;                             \
+  if (addr < 0 || addr > RAM_MEM)                                               \
+  {                                                                             \
+    printf("RE: INVALID ARGUMENT; command = %d; arg = %ld\n",                   \
+    command, addr);                                                             \
+    return NULL;                                                                \
+  }
 
 #define CHECK_MASK(val, msk) ((val & msk) == msk)
 
@@ -28,66 +47,8 @@ enum MASKS
 
 #define push_code                                                               \
   {                                                                             \
-    if (CHECK_MASK (command, MASK_S2RAM))                                       \
-    {                                                                           \
-      char reg = *(proc->code + proc->ip) - 'a';                                \
-      if (reg < 0 || reg > REG_NUM)                                             \
-      {                                                                         \
-        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",                \
-        command, reg);                                                          \
-        return INVALID_ARG;                                                     \
-      }                                                                         \
-      type_t addr = proc->reg[reg];                                             \
-      proc->ip += 1;                                                            \
-      addr += *(type_t *)(proc->code + proc->ip);                               \
-      val = proc->RAM[addr];                                                    \
-      dumb_sleep (500);       /*intentional sleep*/                             \
-      proc->ip += sizeof (type_t);                                              \
-    }                                                                           \
-    else if (CHECK_MASK (command, MASK_I2RAM))                                  \
-    {                                                                           \
-      char addr = *(proc->code + proc->ip);                                     \
-      if (addr < 0 || addr > RAM_MEM)                                           \
-      {                                                                         \
-        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",                \
-        command, addr);                                                         \
-        return INVALID_ARG;                                                     \
-      }                                                                         \
-      val = proc->RAM[addr];                                                    \
-      dumb_sleep (500);       /*intentional sleep*/                             \
-      proc->ip += 1;                                                            \
-    }                                                                           \
-    else if (CHECK_MASK (command, MASK_R2RAM))                                  \
-    {                                                                           \
-      char reg = *(proc->code + proc->ip) - 'a';                                \
-      if (reg < 0 || reg > REG_NUM)                                             \
-      {                                                                         \
-        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",                \
-        command, reg);                                                          \
-        return INVALID_ARG;                                                     \
-      }                                                                         \
-      val = proc->RAM[proc->reg[reg]];                                          \
-      dumb_sleep (500);       /*intentional sleep*/                             \
-      proc->ip += 1;                                                            \
-    }                                                                           \
-    else if (CHECK_MASK (command, MASK_REG))                                    \
-    {                                                                           \
-      char reg = *(proc->code + proc->ip) - 'a';                                \
-      if (reg < 0 || reg > REG_NUM)                                             \
-      {                                                                         \
-        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",                \
-        command, reg);                                                          \
-        return INVALID_ARG;                                                     \
-      }                                                                         \
-      val = proc->reg[reg];                                                     \
-      proc->ip += 1;                                                            \
-    }                                                                           \
-    else if (CHECK_MASK (command, MASK_IMM))                                    \
-    {                                                                           \
-      val = *(type_t *)(proc->code + proc->ip);                                 \
-      proc->ip += sizeof (type_t);                                              \
-    }                                                                           \
-    StackPush (proc->stk, val);                                                 \
+    type_t *arg = get_arg (proc, command);                                      \
+    StackPush (proc->stk, *arg);                                                \
   }
 
 #define in_code                                                                 \
@@ -109,57 +70,8 @@ enum MASKS
       command, pop_err);                                                        \
       return pop_err;                                                           \
     }                                                                           \
-                                                                                \
-    if (CHECK_MASK (command, MASK_S2RAM))                                       \
-    {                                                                           \
-      char reg = *(proc->code + proc->ip) - 'a';                                \
-      proc->ip += 1;                                                            \
-      if (reg < 0 || reg > REG_NUM)                                             \
-      {                                                                         \
-        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",                \
-        command, reg);                                                          \
-        return INVALID_ARG;                                                     \
-      }                                                                         \
-                                                                                \
-      type_t addr = proc->reg[reg] / 1000;                                      \
-      type_t offset = *(type_t *)(proc->code + proc->ip);                       \
-      addr += offset;                                                           \
-                                                                                \
-      dumb_sleep (500);       /*intentional sleep*/                             \
-      proc->RAM[addr] = pop_val;                                                \
-      proc->ip += sizeof (type_t) - 1;                                          \
-    }                                                                           \
-    else if (CHECK_MASK (command, MASK_REG) || CHECK_MASK (command, MASK_R2RAM))\
-    {                                                                           \
-      char addr = *(proc->code + proc->ip) - 'a';                               \
-      if (addr < 0 || addr > REG_NUM)                                           \
-      {                                                                         \
-        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",                \
-        command, addr);                                                         \
-        return INVALID_ARG;                                                     \
-      }                                                                         \
-      if (CHECK_MASK (command, MASK_R2RAM))                                     \
-      {                                                                         \
-        proc->RAM[proc->reg[addr]] = pop_val;                                   \
-        dumb_sleep (500);       /*intentional sleep*/                           \
-      }                                                                         \
-      else                                                                      \
-        proc->reg[addr] = pop_val;                                              \
-    }                                                                           \
-    else if (CHECK_MASK (command, MASK_I2RAM))                                  \
-    {                                                                           \
-      char addr = *(proc->code + proc->ip);                                     \
-      if (addr < 0 || addr > REG_NUM)                                           \
-      {                                                                         \
-        printf("RE: INVALID ARGUMENT; command = %d; arg = %d\n",                \
-        command, addr);                                                         \
-        return INVALID_ARG;                                                     \
-      }                                                                         \
-                                                                                \
-      proc->RAM[addr] = pop_val;                                                \
-      dumb_sleep (500);       /*intentional sleep*/                             \
-    }                                                                           \
-    proc->ip += 1;                                                              \
+    type_t *dest = get_arg (proc, command);                                     \
+    *dest = pop_val;                                                            \
   }
 
 #define add_code                                                                \
@@ -188,7 +100,7 @@ enum MASKS
       printf("RUNTIME ERROR: division by zero\n");                              \
       return DIV_BY_ZERO;                                                       \
     }                                                                           \
-    StackPush (proc->stk, 1000.0f / a * b);                                     \
+    StackPush (proc->stk, 1000.0f / b * a);                                     \
   }
 
 #define out_code                                                                \
@@ -206,6 +118,63 @@ enum MASKS
 #define hlt_code return CMD_hlt;
 
 #define call_action !StackPush (proc->stk, proc->ip + sizeof (type_t))
+
+#define sin_code                                                                \
+  {                                                                             \
+    uint64_t pop_err = 0;                                                       \
+    type_t pop_val = StackPop (proc->stk, &pop_err);                            \
+                                                                                \
+    if (pop_err)                                                                \
+    {                                                                           \
+      printf("RUNTIME ERROR: command = %d;error: %06lX\n",                      \
+      command, pop_err);                                                        \
+      return pop_err;                                                           \
+    }                                                                           \
+    StackPush (proc->stk, sin (((double)pop_val)/1000)*1000);                   \
+  }
+
+#define cos_code                                                                \
+  {                                                                             \
+    uint64_t pop_err = 0;                                                       \
+    type_t pop_val = StackPop (proc->stk, &pop_err);                            \
+                                                                                \
+    if (pop_err)                                                                \
+    {                                                                           \
+      printf("RUNTIME ERROR: command = %d;error: %06lX\n",                      \
+      command, pop_err);                                                        \
+      return pop_err;                                                           \
+    }                                                                           \
+    StackPush (proc->stk, cos (((double)pop_val)/1000)*1000);                   \
+  }
+
+#define sqrt_code                                                               \
+  {                                                                             \
+    uint64_t pop_err = 0;                                                       \
+    type_t pop_val = StackPop (proc->stk, &pop_err);                            \
+                                                                                \
+    if (pop_err)                                                                \
+    {                                                                           \
+      printf("RUNTIME ERROR: command = %d;error: %06lX\n",                      \
+      command, pop_err);                                                        \
+      return pop_err;                                                           \
+    }                                                                           \
+    StackPush (proc->stk, sqrt (((double)pop_val)/1000)*1000);                  \
+  }
+
+#define drw_code                                                                \
+  {                                                                             \
+    int len = RAM_MEM - (proc->video_mem - proc->RAM);                          \
+    for (int Ypixel = 0; Ypixel < len; Ypixel += proc->xRes)                    \
+    {                                                                           \
+      for (int i = 0; i < proc->xRes; i++)                                      \
+      {                                                                         \
+        printf (" ");                                                           \
+        char pixel_val = *(proc->video_mem + Ypixel + i)/1000;                  \
+        putc (pixel_val ? pixel_val : ' ', stdout);                             \
+      }                                                                         \
+      printf ("\n");                                                            \
+    }                                                                           \
+  }
 
 #ifdef PROC_DUMP
   #define ret_code                                                              \
@@ -327,6 +296,9 @@ struct processor
   int ip;
   type_t reg[REG_NUM];
   type_t RAM[RAM_MEM];
+  type_t *video_mem;
+  int xRes;
+  int yRes;
 };
 
 int get_io_args (int argc, const char **argv, config *curr_config);
@@ -338,6 +310,8 @@ int get_header (processor *proc);
 int run_binary (processor *proc);
 
 int process_command (processor *proc);
+
+type_t *get_arg (processor *proc, char cmd);
 
 int dump_proc (processor *proc);
 

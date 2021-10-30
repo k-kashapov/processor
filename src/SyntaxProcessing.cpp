@@ -6,9 +6,7 @@ int get_io_args (int argc, const char **argv, config *curr_config)
 {
   while (--argc > 0)
   {
-    printf("%s\n", *argv);
     argv++;
-    printf("%s\n", *argv);
 
     if (!strncmp (*argv, "-i", 3))
     {
@@ -33,7 +31,7 @@ int ProcessCommand (const char *text, ARRAYS)
   long unsigned int curr_ip = binary - binary_arr;
 
   printf("\naddr = %#06lx; text = %*s; ",
-          curr_ip - sizeof (Header_t), MAX_NAME_LEN * 2, text);
+          curr_ip - sizeof (Header_t), MAX_NAME_LEN, text);
 
   int scanned = sscanf (text, "%[a-zA-Z0-9]%n", command, &bytes_read);
   if (scanned && text[bytes_read] == ':')
@@ -49,7 +47,7 @@ int ProcessCommand (const char *text, ARRAYS)
 
   if (*command == ';') return 0;
 
-  printf ("command = %*s; ", MAX_NAME_LEN, command);
+  printf ("command = %*s; ", MAX_NAME_LEN / 2, command);
 
   uint64_t command_hash = MurmurHash (command, cmd_len);
   printf ("hash = %lx; ", command_hash);
@@ -112,7 +110,8 @@ int Assemble (file_info *source, char *binary_arr)
   SPRINT_BYTES (header);
 
 
-  Link (binary, binary_arr, lines, &jl_arr);
+  int linking_err = Link (binary, binary_arr, lines, &jl_arr);
+  if (!linking_err) return linking_err;
   printf("bytes total = %d\n", char_num);
 
   free (lines);
@@ -158,7 +157,7 @@ int Link (char *binary, char *binary_arr, type_t *lines, JL_info *jl_arr)
 
     if (lbl >= jl_arr->lbl_num)
     {
-      printf ("\nCE: STRAY JUMP");
+      printf ("\nCE: STRAY JUMP\n");
       return STRAY_JUMP;
     }
   }

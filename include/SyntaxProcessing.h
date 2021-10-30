@@ -5,9 +5,9 @@
 #include "files.h"
 #include <fcntl.h>
 
-const int MAX_NAME_LEN   =   8;
+const int MAX_NAME_LEN   =  32;
 const int MAX_LABELS_NUM =  32;
-const int MAX_BINARY_LEN = 512;
+const int MAX_BINARY_LEN = 2048;
 
 enum COMPILATION_ERRORS
 {
@@ -80,7 +80,7 @@ struct JL_info
 #define ADD_LABEL(cmd)                                                          \
   uint64_t cmd_hash = MurmurHash (cmd, bytes_read);                             \
   printf ("command = %*s; hash = %lx; len = %d; ",                              \
-          MAX_NAME_LEN, cmd, cmd_hash, bytes_read);                             \
+          MAX_NAME_LEN / 2, cmd, cmd_hash, bytes_read);                         \
   for (int iter = 0; iter < jl_arr->lbl_num; iter++)                            \
   {                                                                             \
     if (GET_LABEL_HASH (iter) == cmd_hash)                                      \
@@ -97,22 +97,21 @@ struct JL_info
 #define DEF_CMD(num, cmd, argc, code, hash)                                     \
   if (hash == command_hash)                                                     \
   {                                                                             \
-    char tmp_ch = 0;                                                            \
-    int tmp_int = 0;                                                            \
+    type_t tmp_int = 0;                                                         \
     double tmp_lf = 0;                                                          \
     unsigned char mask = 0x00;                                                  \
     const char *format_str = "";                                                \
     int scanned = 0;                                                            \
-    if (sscanf (text, "[%1[a-d]x + %d]", &tmp_ch, &tmp_int) == 2)               \
+    if (sscanf (text, "[%1[a-z]x + %d]", &tmp_int, &tmp_int) == 2)              \
     {                                                                           \
       mask = MASK_S2RAM;                                                        \
-      format_str = "[%1[a-d]x + %d]";                                           \
+      format_str = "[%1[a-z]x + %d]";                                           \
     }                                                                           \
     else                                                                        \
-    GET_MASK (      "[%d]", &tmp_int, MASK_I2RAM)                               \
+    GET_MASK (     "[%ld]", &tmp_int, MASK_I2RAM)                               \
     GET_MASK (       "%lf",  &tmp_lf,   MASK_IMM)                               \
-    GET_MASK ("[%1[a-d]x]",  &tmp_ch, MASK_R2RAM)                               \
-    GET_MASK (  "%1[a-d]x",  &tmp_ch,   MASK_REG)                               \
+    GET_MASK ("[%1[a-z]x]", &tmp_int, MASK_R2RAM)                               \
+    GET_MASK (  "%1[a-z]x", &tmp_int,   MASK_REG)                               \
     {                                                                           \
       scanned = EOF;                                                            \
     }                                                                           \
@@ -141,10 +140,29 @@ struct JL_info
         SPRINT_BYTES (offset);                                                  \
         bytes_written += sizeof(type_t);                                        \
       }                                                                         \
+      else if (mask == MASK_I2RAM)                                              \
+      {                                                                         \
+        type_t argv = 0;                                                        \
+        int arg_scanned = sscanf (text, format_str, &argv);                     \
+        if (!arg_scanned)                                                       \
+        {                                                                       \
+          printf("INVALID_ARG\n");                                              \
+          return INVALID_ARG;                                                   \
+        }                                                                       \
+        printf("value = %ld; bytes = ", argv);                                  \
+        type_t value = (argv * 1000);                                           \
+        SPRINT_BYTES (value);                                                   \
+        bytes_written += sizeof(type_t);                                        \
+      }                                                                         \
       else if (mask == MASK_IMM)                                                \
       {                                                                         \
         double argv = 0;                                                        \
-        sscanf (text, format_str, &argv);                                       \
+        int arg_scanned = sscanf (text, format_str, &argv);                     \
+        if (!arg_scanned)                                                       \
+        {                                                                       \
+          printf("INVALID_ARG\n");                                              \
+          return INVALID_ARG;                                                   \
+        }                                                                       \
         printf("value = %06.3lf; bytes = ", argv);                              \
         type_t value = (type_t)(argv * 1000);                                   \
         SPRINT_BYTES (value);                                                   \
@@ -152,10 +170,11 @@ struct JL_info
       }                                                                         \
       else                                                                      \
       {                                                                         \
-        char argv = 0;                                                          \
+        uint64_t argv = 0;                                                      \
         sscanf (text, format_str, &argv);                                       \
         printf("arg = %d; bytes = ", argv);                                     \
-        SPRINT_BYTES (argv);                                                    \
+        char argv_ch = (char) argv;                                             \
+        SPRINT_BYTES (argv_ch);                                                 \
         bytes_written += 1;                                                     \
       }                                                                         \
       text += bytes_read;                                                       \

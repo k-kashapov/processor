@@ -35,9 +35,9 @@ int main (int argc, const char **argv)
 
   FILE *output = fopen (io_config.output_file, "wb");
 
-
   fwrite (binary_arr, 1, char_num, output);
 
+  free_info (&source);
   fclose (output);
 
   return 0;

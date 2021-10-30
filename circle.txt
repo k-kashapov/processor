@@ -1,0 +1,98 @@
+push 36
+pop ax ; pixels x
+push 16
+pop bx ; pixels y
+push 448
+pop cx ; video_mem
+push 8
+pop rx ; radius
+
+push ax
+push 2
+div
+pop [2] ; x center
+
+push bx
+push 2
+div
+pop [3] ; y center
+
+push 0
+push 0
+
+pop [0] ; x = 0
+pop [1] ; y = 0
+
+call :fillvid
+drw
+
+hlt
+
+fillvid:
+    call :isInside
+
+    push [0]
+    push ax
+    jb :nonInc ; no need to increment y
+    push [1]
+    push 1
+    add
+    pop [1] ; increment y
+
+    push 0
+    pop [0] ; x to zero
+
+nonInc:
+    push [0]
+    push 1
+    add
+    pop [0]
+
+    push [1]
+    push bx
+    jb :fillvid
+    ret
+
+isInside:
+    push [0]
+    push [2]
+    sub
+
+    push [0]
+    push [2]
+    sub
+
+    mul      ; x^2
+
+    push [1]
+    push [3]
+    sub
+
+    push [1]
+    push [3]
+    sub
+    mul      ; y^2
+
+    add      ; x^2 + y^2
+
+    sqrt
+    push rx
+    jb :fillNull
+
+    ret
+
+fillNull:
+    push [1]
+    push ax
+    mul
+
+    push [0]
+    add
+
+    push cx
+    add
+    pop tx
+
+    push 64
+    pop [tx]
+    ret

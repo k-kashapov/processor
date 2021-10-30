@@ -68,6 +68,9 @@ int get_header (processor *proc)
 
   proc->code += sizeof (Header_t);
   proc->bytes_num = header.char_num;
+  proc->video_mem = proc->RAM + RAM_MEM - header.xRes * header.yRes;
+  proc->xRes = header.xRes;
+  proc->yRes = header.yRes;
 
   return 0;
 }
@@ -123,6 +126,59 @@ int process_command (processor *proc)
   #endif
 
   return 0;
+}
+
+type_t *get_arg (processor *proc, char cmd)
+{
+  unsigned char command = proc->code[proc->ip];
+
+  if (CHECK_MASK (cmd, MASK_S2RAM))
+  {
+    type_t addr = 0;
+    GET_NEXT_CHAR;
+    proc->ip += 1;
+
+    type_t res = proc->reg[addr];
+    res += *(type_t *)(proc->code + proc->ip);
+    proc->ip += sizeof (type_t);
+
+    //dumb_sleep (20);       /*intentional sleep*/
+    return proc->RAM + res;
+  }
+  else if (CHECK_MASK (cmd, MASK_I2RAM))
+  {
+    type_t addr = 0;
+    GET_NEXT_TYPE_T;
+    proc->ip += sizeof (type_t);
+
+    //dumb_sleep (20);       /*intentional sleep*/
+    return (proc->RAM + addr);
+  }
+  else if (CHECK_MASK (cmd, MASK_R2RAM))
+  {
+    type_t addr = 0;
+    GET_NEXT_CHAR;
+    proc->ip += 1;
+
+    //dumb_sleep (20);       /*intentional sleep*/
+    return proc->RAM + proc->reg[addr] / 1000;
+  }
+  else if (CHECK_MASK (cmd, MASK_REG))
+  {
+    type_t addr = 0;
+    GET_NEXT_CHAR;
+    proc->ip += 1;
+
+    return (type_t *)(proc->reg + addr);
+  }
+  else if (CHECK_MASK (cmd, MASK_IMM))
+  {
+    type_t *res = (type_t *)(proc->code + proc->ip);
+    proc->ip += sizeof (type_t);
+    return res;
+  }
+  else
+    return NULL;
 }
 
 int dump_proc (processor *proc)
