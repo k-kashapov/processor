@@ -163,6 +163,7 @@ enum MASKS
 
 #define drw_code                                                                \
   {                                                                             \
+    system ("clear");                                                           \
     int len = RAM_MEM - (proc->video_mem - proc->RAM);                          \
     for (int Ypixel = 0; Ypixel < len; Ypixel += proc->xRes)                    \
     {                                                                           \
