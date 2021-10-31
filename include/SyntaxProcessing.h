@@ -5,8 +5,8 @@
 #include "files.h"
 #include <fcntl.h>
 
-const int MAX_NAME_LEN   =  32;
-const int MAX_LABELS_NUM =  32;
+const int MAX_NAME_LEN   =   32;
+const int MAX_LABELS_NUM =   32;
 const int MAX_BINARY_LEN = 2048;
 
 enum COMPILATION_ERRORS

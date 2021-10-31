@@ -346,21 +346,23 @@ unsigned long MurmurHash (const void *stk, unsigned long len)
 {
   if (!stk) return 0;
 
+  unsigned int ilen = (unsigned int) len;
+
   const unsigned int m = 0x5bd1e995;
   const unsigned int seed = 0;
   const int r = 24;
 
-  unsigned int h = seed ^ len;
+  unsigned int h = seed ^ ilen;
 
   const unsigned char * data = (const unsigned char *)stk;
   unsigned int k = 0;
 
-  while (len >= 4)
+  while (ilen >= 4)
   {
-    k  = data[0];
-    k |= data[1] << 8;
-    k |= data[2] << 16;
-    k |= data[3] << 24;
+    k  = (unsigned int)  data[0];
+    k |= (unsigned int) (data[1] << 8);
+    k |= (unsigned int) (data[2] << 16);
+    k |= (unsigned int) (data[3] << 24);
 
     k *= m;
     k ^= k >> r;
@@ -370,15 +372,15 @@ unsigned long MurmurHash (const void *stk, unsigned long len)
     h ^= k;
 
     data += 4;
-    len -= 4;
+    ilen -= 4;
   }
 
   switch (len)
   {
     case 3:
-      h ^= data[2] << 16;
+      h ^= (unsigned int) (data[2] << 16);
     case 2:
-      h ^= data[1] << 8;
+      h ^= (unsigned int) data[1] << 8;
     case 1:
       h ^= data[0];
       h *= m;

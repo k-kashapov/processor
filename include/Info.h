@@ -12,6 +12,6 @@ struct Header_t
 	unsigned long sign     =   Signature;
 	unsigned long ver      =     Version;
 	unsigned long char_num =           0;
-	unsigned long xRes     = XRESOLUTION;
-	unsigned long yRes     = YRESOLUTION;
+	long xRes              = XRESOLUTION;
+	long yRes              = YRESOLUTION;
 };

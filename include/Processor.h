@@ -142,7 +142,7 @@ const char SetColor[8][10] =
       command, pop_err);                                                        \
       return pop_err;                                                           \
     }                                                                           \
-    StackPush (proc->stk, (type_t) sin (((double)pop_val) / 1000) * 1000);          \
+    StackPush (proc->stk, (type_t) sin (((double)pop_val) / 1000) * 1000);      \
   }
 
 #define cos_code                                                                \
@@ -178,9 +178,9 @@ const char SetColor[8][10] =
     long int len = RAM_MEM - (proc->video_mem - proc->RAM);                     \
     for (long Ypixel = 0; Ypixel < len; Ypixel += proc->xRes)                   \
     {                                                                           \
-      for (long i = 0; i < proc->xRes; i++)                                     \
+      for (long xPixel = 0; xPixel < proc->xRes; xPixel++)                      \
       {                                                                         \
-        type_t pixel_val = *(proc->video_mem + Ypixel + i) / 1000;              \
+        type_t pixel_val = *(proc->video_mem + Ypixel + xPixel) / 1000;         \
         unsigned char pixel_sym = (unsigned char) pixel_val;                    \
         unsigned char color_val = (unsigned char) ((pixel_val >> 8) % 8);       \
         printf ("%s", SetColor[color_val]);                                     \
@@ -210,30 +210,14 @@ const char SetColor[8][10] =
       code;                                                                     \
       break;
 
-
-  #define DEF_JMP_CMD(num, name, argc, action, hash)                            \
-    case CMD_##name:                                                            \
+  #define jump_with_0_args(name, action)                                        \
     {                                                                           \
       printf("command = " #name "\n");                                          \
-      type_t a = 0;                                                             \
-      type_t b = 0;                                                             \
-      if (argc > 0)                                                             \
-      {                                                                         \
-        uint64_t pop_err = 0;                                                   \
-        b = StackPop (proc->stk, &pop_err);                                     \
-        a = StackPop (proc->stk, &pop_err);                                     \
-        if (pop_err)                                                            \
-        {                                                                       \
-          printf("RUNTIME ERROR: in function: out; error: %02lX\n", pop_err);   \
-          return pop_err;                                                       \
-        }                                                                       \
-      }                                                                         \
-      uint64_t res = action;                                                    \
-      if (res)                                                                  \
+      if (action)                                                               \
       {                                                                         \
         printf("JUMP from %lx\n", proc->ip - sizeof (Header_t));                \
         val = *(type_t *)(proc->code + proc->ip);                               \
-        proc->ip = val - sizeof (Header_t);                                     \
+        proc->ip = (unsigned long) val - sizeof (Header_t);                     \
         printf ("Moved ip to %02lX\n", val - sizeof (Header_t));                \
       }                                                                         \
       else                                                                      \
@@ -241,8 +225,25 @@ const char SetColor[8][10] =
         printf ("JUMP condition not worked: " #action " result = %lu\n", res);  \
         proc->ip += sizeof (type_t);                                            \
       }                                                                         \
-    }                                                                           \
-    break;
+    }
+
+  #define jump_with_2_args(name, action)                                        \
+    {                                                                           \
+      pop_ab ()                                                                 \
+      printf("command = " name "\n");                                          \
+      if (action)                                                               \
+      {                                                                         \
+        printf("JUMP from %lx\n", proc->ip - sizeof (Header_t));                \
+        val = *(type_t *)(proc->code + proc->ip);                               \
+        proc->ip = (unsigned long) val - sizeof (Header_t);                     \
+        printf ("Moved ip to %02lX\n", val - sizeof (Header_t));                \
+      }                                                                         \
+      else                                                                      \
+      {                                                                         \
+        printf ("JUMP condition not worked: " #action " result = %lu\n", res);  \
+        proc->ip += sizeof (type_t);                                            \
+      }                                                                         \
+    }
 #else
   #define ret_code                                                              \
     {                                                                           \
@@ -261,24 +262,9 @@ const char SetColor[8][10] =
       code;                                                                     \
       break;
 
-  #define DEF_JMP_CMD(num, name, argc, action, hash)                            \
-    case CMD_##name:                                                            \
+  #define jump_with_0_args(name, action)                                        \
     {                                                                           \
-      type_t a = 0;                                                             \
-      type_t b = 0;                                                             \
-      if (argc > 0)                                                             \
-      {                                                                         \
-        uint64_t pop_err = 0;                                                   \
-        b = StackPop (proc->stk, &pop_err);                                     \
-        a = StackPop (proc->stk, &pop_err);                                     \
-        if (pop_err)                                                            \
-        {                                                                       \
-          printf("RUNTIME ERROR: in function: out; error: %02lX\n", pop_err);   \
-          return pop_err;                                                       \
-        }                                                                       \
-      }                                                                         \
-      uint64_t res = action;                                                    \
-      if (res)                                                                  \
+      if (action)                                                               \
       {                                                                         \
         val = *(type_t *)(proc->code + proc->ip);                               \
         proc->ip = (unsigned long) val - sizeof (Header_t);                     \
@@ -287,10 +273,27 @@ const char SetColor[8][10] =
       {                                                                         \
         proc->ip += sizeof (type_t);                                            \
       }                                                                         \
-    }                                                                           \
-    break;
+    }
+
+  #define jump_with_2_args(name, action)                                        \
+    {                                                                           \
+      pop_ab ()                                                                 \
+      if (action)                                                               \
+      {                                                                         \
+        val = *(type_t *)(proc->code + proc->ip);                               \
+        proc->ip = (unsigned long) val - sizeof (Header_t);                     \
+      }                                                                         \
+      else                                                                      \
+      {                                                                         \
+        proc->ip += sizeof (type_t);                                            \
+      }                                                                         \
+    }
 #endif
 
+#define DEF_JMP_CMD(num, name, argc, action, hash)                              \
+  case CMD_##name:                                                              \
+    jump_with_##argc##_args (#name, action);                                    \
+    break;
 
 enum ExitCodes
 {
@@ -311,8 +314,8 @@ struct processor
   type_t *reg;
   type_t *RAM;
   type_t *video_mem;
-  unsigned long xRes;
-  unsigned long yRes;
+  long xRes;
+  long yRes;
 };
 
 int get_io_args (int argc, const char **argv, Config *curr_config);
