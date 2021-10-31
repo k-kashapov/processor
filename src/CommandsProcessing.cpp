@@ -5,9 +5,9 @@
 #include "time.h"
 
 const int CMD_MASK = 0x1F;
-#define ARTIFICIAL_SLOW() for (int sleep_iterator_my_personal_var_system = 0; sleep_iterator_my_personal_var_system < 1000; sleep_iterator_my_personal_var_system++);
+//#define ARTIFICIAL_SLOW() for (int sleep_iterator_my_personal_var_system = 0; sleep_iterator_my_personal_var_system < 1000; sleep_iterator_my_personal_var_system++);
 
-int get_io_args (int argc, const char **argv, config *curr_config)
+int get_io_args (int argc, const char **argv, Config *curr_config)
 {
   while (--argc > 0)
   {
@@ -27,12 +27,12 @@ int get_io_args (int argc, const char **argv, config *curr_config)
   return 0;
 }
 
-int read_code (processor *proc, config *io_config)
+int read_code (processor *proc, Config *io_config)
 {
   FILE *code = fopen (io_config->input_file, "rb");
   assert (code && "file opened");
 
-  proc->code = read_to_end (code);
+  proc->code = (unsigned char *)read_to_end (code);
   assert (proc->code);
 
   int closed = fclose (code);
@@ -46,9 +46,9 @@ int get_header (processor *proc)
 {
   Header_t header = *((Header_t *)proc->code);
   #ifdef PROC_DUMP
-    printf ("sign = %X\n", header.sign);
-    printf ("version = %x\n", header.ver);
-    printf ("bytes = %d\n------------\n", header.char_num);
+    printf ("sign = %lX\n", header.sign);
+    printf ("version = %lx\n", header.ver);
+    printf ("bytes = %lu\n------------\n", header.char_num);
   #endif
 
   if (header.sign != Signature)
@@ -76,7 +76,7 @@ int get_header (processor *proc)
   return 0;
 }
 
-int run_binary (processor *proc)
+uint64_t run_binary (processor *proc)
 {
   StackInit (*proc->stk);
 
@@ -86,7 +86,7 @@ int run_binary (processor *proc)
         dump_proc (proc);
       #endif
 
-      int result = process_command (proc);
+      uint64_t result = process_command (proc);
 
       if (result == CMD_hlt)
       {
@@ -95,8 +95,8 @@ int run_binary (processor *proc)
 
       if (result)
       {
-        printf ("\nFATAL: command = %d at %06X; error = %d\n",
-        proc->code[proc->ip - 1], proc->ip - 1, result);
+        printf ("\nFATAL: command = %d at %06lX; error = %lu\n",
+        proc->code[proc->ip - 1], (proc->ip - 1), result);
         return result;
       }
   }
@@ -104,7 +104,7 @@ int run_binary (processor *proc)
   return 0;
 }
 
-int process_command (processor *proc)
+uint64_t process_command (processor *proc)
 {
   type_t val = 0;
 
@@ -123,16 +123,14 @@ int process_command (processor *proc)
   }
 
   #ifdef PROC_DUMP
-    printf ("val = %.3lf\n", (double) val / 1000);
+    printf ("ip = %lx hex\n", proc->ip - sizeof (Header_t));
   #endif
 
   return 0;
 }
 
-type_t *get_arg (processor *proc, char cmd)
+type_t *get_arg (processor *proc, unsigned char cmd)
 {
-  unsigned char command = proc->code[proc->ip];
-
   if (CHECK_MASK (cmd, MASK_S2RAM))
   {
     type_t addr = 0;
@@ -164,22 +162,21 @@ type_t *get_arg (processor *proc, char cmd)
   else if (CHECK_MASK (cmd, MASK_R2RAM))
   {
     type_t addr = 0;
-    GET_NEXT_CHAR;
-    proc->ip += 1;
+    GET_NEXT_TYPE_T;
+    proc->ip += sizeof (type_t);
 
     #ifdef ARTIFICIAL_SLOW
       ARTIFICIAL_SLOW ()
     #endif
-
-    return proc->RAM + proc->reg[addr] / 1000;
+    return proc->RAM + proc->reg[addr - 'a'] / 1000;
   }
   else if (CHECK_MASK (cmd, MASK_REG))
   {
     type_t addr = 0;
     GET_NEXT_CHAR;
     proc->ip += 1;
-
-    return (type_t *)(proc->reg + addr);
+    
+    return (proc->reg + addr);
   }
   else if (CHECK_MASK (cmd, MASK_IMM))
   {
@@ -198,23 +195,33 @@ int dump_proc (processor *proc)
   assert (log);
 
   fprintf(log, "<pre>");
-  for (int printer = 0; printer < proc->bytes_num; printer++)
+  for (unsigned int line = 0; line < proc->bytes_num / 256 + 1; line++)
   {
-    fprintf (log, "%#*x ", 5, printer);
+    for (unsigned int printer = 0; printer < 256; printer++)
+    {
+      fprintf (log, "%#*x ", 5, printer);
+    }
+    fprintf(log, "\n");
+    for (unsigned int printer = 0; printer < 256; printer++)
+    {
+      fprintf (log, "%05X ", (proc->code)[printer + line * 256]);
+    }
+    if (proc->ip / 256 >= line && proc->ip / 256 < line + 1)
+    {
+      fprintf(log, "\n%*s\n", (int) (proc->ip % 256)*6, "^");
+    }
+    fprintf (log, "\n\n");
   }
-  fprintf(log, "\n");
-  for (int printer = 0; printer < proc->bytes_num; printer++)
-  {
-    fprintf (log, "%05X ", ((unsigned char*)proc->code)[printer]);
-  }
-  fprintf(log, "\n%*s\n", proc->ip*6, "^");
 
-  fprintf(log, "Stack size     = %d\n", proc->stk->size);
-  fprintf(log, "Stack capacity = %d\n", proc->stk->capacity);
+
+
+  fprintf(log, "Stack size     = %ld\n", proc->stk->size);
+  fprintf(log, "Stack capacity = %ld\n", proc->stk->capacity);
 
   fprintf(log, "Stack: ");
   for (int stk_elem = 0; stk_elem < proc->stk->capacity; stk_elem++)
   {
+    if (stk_elem % 256 == 255) fprintf (log, "\n");
     fprintf (log, "%ld, ", proc->stk->buffer[stk_elem]);
   }
 
@@ -224,9 +231,10 @@ int dump_proc (processor *proc)
     fprintf (log, "%c: %ld, ", 'a' + reg, proc->reg[reg]);
   }
 
-  fprintf(log, "\nRAM: ");
+  fprintf(log, "\nRAM:\n");
   for (int addr = 0; addr < RAM_MEM; addr++)
   {
+    if (addr % 256 == 255) fprintf(log, "\n");
     fprintf (log, "%ld, ", proc->RAM[addr]);
   }
 
@@ -234,12 +242,5 @@ int dump_proc (processor *proc)
 
   fclose (log);
 
-  return 0;
-}
-
-int dumb_sleep (double ms)
-{
-  double start = clock();
-  while (clock() - start < ms * 1000) ;
   return 0;
 }

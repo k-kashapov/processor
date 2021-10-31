@@ -5,6 +5,7 @@ void _check_unique ()
   switch (0)
   {
     #include "commands.h"
+    default: break;
   }
 }
 

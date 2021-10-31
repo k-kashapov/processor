@@ -24,10 +24,10 @@ typedef int64_t type_t;
     #define StackInit(stk)                                        \
         StackInit_ (&stk, __FILE__, __FUNCTION__, __LINE__, #stk);
 
-    #define STACK_OK(stk)                                  \
-        Stack_Err = StackError (stk);                      \
-        StackDump (stk, Stack_Err, __FUNCTION__, __LINE__); \
-        if (Stack_Err) return Stack_Err;
+    #define STACK_OK(stk)                                   \
+        Stack_Err = StackError (stk);                       \
+        StackDump (stk, Stack_Err, __FUNCTION__, __LINE__);
+
 #else
     #define StackInit(stk) \
         StackInit_ (&stk)
@@ -36,12 +36,12 @@ typedef int64_t type_t;
 #endif
 
 #ifdef HASH_PROTECTION
-    #define COUNT_STACK_HASH(stk, res)                                                 \
-        int len = sizeof (*stk) - sizeof (stk->struct_hash) - sizeof (stk->data_hash); \
+    #define COUNT_STACK_HASH(stk, res)                                                           \
+        unsigned long len = sizeof (*stk) - sizeof (stk->struct_hash) - sizeof (stk->data_hash); \
         res = MurmurHash (stk, len);
 
-    #define COUNT_DATA_HASH(stk, res)                                \
-        res = MurmurHash (stk->buffer, stk->size * sizeof (type_t));
+    #define COUNT_DATA_HASH(stk, res)                                               \
+        res = MurmurHash (stk->buffer, (unsigned long) stk->size * sizeof (type_t));
 #endif
 
 #define PRINT_ERR(err, flag)                                                   \
@@ -62,8 +62,8 @@ struct stack_t
     #endif
 
     type_t *buffer;
-    int    capacity;
-    int    size;
+    long  capacity;
+    long      size;
 
     #ifdef DEBUG_INFO
         const char* func;
@@ -77,8 +77,8 @@ struct stack_t
     #endif
 
     #ifdef HASH_PROTECTION
-        unsigned int struct_hash;
-        unsigned int data_hash;
+        unsigned long struct_hash;
+        unsigned long data_hash;
     #endif
 };
 
@@ -97,12 +97,13 @@ enum ErrorCodes
     RIGHT_DATA_CANARY_DEAD =   0x0200,
     NOT_POISONED_BEYOND_SIZE = 0x0400,
     STACK_HASH_INVALID =       0x0800,
-    DATA_HASH_INVALID =        0x1000
+    DATA_HASH_INVALID =        0x1000,
+    LOG_NOT_OPENED =           0x2000,
 };
 
 uint64_t StackDump (stack_t *stk, uint64_t err, const char *called_from, const int line_called_from);
 
-unsigned int MurmurHash (const void *stk, int len);
+unsigned long MurmurHash (const void *stk, unsigned long len);
 
 uint64_t StackInit_ (stack_t *stk, const char *file_name = NULL, const char *func_name = NULL, const int line = -1, const char *name = NULL);
 

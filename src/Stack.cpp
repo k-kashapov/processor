@@ -40,11 +40,13 @@ uint64_t StackInit_ (stack_t *stk, const char *file_name, const char *func_name,
     #endif
 
     #ifdef HASH_PROTECTION
-        COUNT_STACK_HASH (stk, stk->struct_hash);
-        COUNT_DATA_HASH  (stk, stk->data_hash);
+        unsigned long len = sizeof (*stk) - sizeof (stk->struct_hash) - sizeof (stk->data_hash);
+        stk->struct_hash = MurmurHash (stk, len);
+        stk->data_hash = MurmurHash (stk->buffer, (unsigned long) stk->size * sizeof (type_t));
     #endif
 
     STACK_OK (stk);
+    if (Stack_Err) return Stack_Err;
     return OK;
 }
 
@@ -56,14 +58,6 @@ uint64_t StackError (stack_t *stk)
         uint64_t canary_check = CANARY_VAL ^ (uint64_t) stk;
     #endif
 
-    if (stk->capacity < 0)
-    {
-        StkErrors |= CAPACITY_UNDER_ZERO;
-    }
-    if (stk->size < 0)
-    {
-        StkErrors |= SIZE_UNDER_ZERO;
-    }
     if (stk->size > stk->capacity)
     {
         StkErrors |= SIZE_OVER_CAPACITY;
@@ -76,7 +70,7 @@ uint64_t StackError (stack_t *stk)
     }
 
     #ifdef HASH_PROTECTION
-        unsigned int stk_hash = 0;
+        long unsigned int stk_hash = 0;
         COUNT_STACK_HASH (stk, stk_hash)
 
         if (stk_hash != stk->struct_hash)
@@ -84,7 +78,7 @@ uint64_t StackError (stack_t *stk)
             StkErrors |= STACK_HASH_INVALID;
         }
 
-        unsigned int data_hash = 0;
+        long unsigned int data_hash = 0;
         COUNT_DATA_HASH (stk, data_hash)
 
         if (data_hash != stk->data_hash)
@@ -117,9 +111,9 @@ uint64_t StackError (stack_t *stk)
     #endif
 
     #ifdef CHECK_POISON
-        for (int iter = stk->size; iter > 0 && iter < stk->capacity; iter++)
+        for (long pois_iter = stk->size; pois_iter > 0 && pois_iter < stk->capacity; pois_iter++)
         {
-            if (stk->buffer [iter] != POISON)
+            if (stk->buffer [pois_iter] != POISON)
             {
                 StkErrors |= NOT_POISONED_BEYOND_SIZE;
                 break;
@@ -133,7 +127,7 @@ uint64_t StackError (stack_t *stk)
 uint64_t StackDump (stack_t *stk, uint64_t err, const char *called_from, const int line_called_from)
 {
     #ifdef DEBUG_INFO
-        if (!Log_file) return -1;
+        if (!Log_file) return LOG_NOT_OPENED;
 
         const char *err_string = err ? "<em style = \"color : red\">ERROR</em>" : "<em style = \"color : #00FA9A\">ok</em>";
         fprintf (Log_file, "<pre>[%s] [%s] Stack &#60%s&#62 [&%p] \"%s\" %s at %s at %s (%d); called from %s (%d)\n</pre>",\
@@ -161,7 +155,7 @@ uint64_t StackDump (stack_t *stk, uint64_t err, const char *called_from, const i
             if (err)
         #endif
         {
-            fprintf (Log_file, "<pre>{\n\tcapacity = %d;\n\tsize = %d;",\
+            fprintf (Log_file, "<pre>{\n\tcapacity = %ld;\n\tsize = %ld;",\
                      stk->capacity, stk->size);
 
             #ifdef CANARY_PROTECTION
@@ -169,12 +163,12 @@ uint64_t StackDump (stack_t *stk, uint64_t err, const char *called_from, const i
             #endif
 
             #ifdef HASH_PROTECTION
-                unsigned int stk_hash = 0;
+                long unsigned int stk_hash = 0;
                 COUNT_STACK_HASH (stk, stk_hash);
 
-                unsigned int data_hash = 0;
+                long unsigned int data_hash = 0;
                 COUNT_DATA_HASH (stk, data_hash);
-                fprintf (Log_file, "\n\tstruct_hash = %u;\n\texpected struct_hash = %u;\n\tdata_hash = %u;\n\texpected data_hash = %u;", stk_hash, stk->struct_hash, data_hash, stk->data_hash);
+                fprintf (Log_file, "\n\tstruct_hash = %lu;\n\texpected struct_hash = %lu;\n\tdata_hash = %lu;\n\texpected data_hash = %lu;", stk_hash, stk->struct_hash, data_hash, stk->data_hash);
             #endif
 
             fprintf (Log_file, "\n\tbuffer &#60%s&#62 [&%p]\n\t{\n", _type_name, stk->buffer);
@@ -194,11 +188,11 @@ uint64_t StackDump (stack_t *stk, uint64_t err, const char *called_from, const i
                 const char *poison = stk->buffer[buff_iter] == POISON ? "POISON" : "";
                 if (buff_iter < stk->size)
                 {
-                    fprintf (Log_file, "\t\t*[%d] = %f\n", buff_iter, stk->buffer[buff_iter]);
+                    fprintf (Log_file, "\t\t*[%d] = %ld\n", buff_iter, stk->buffer[buff_iter]);
                 }
                 else
                 {
-                    fprintf (Log_file, "\t\t [%d] = %f %s\n", buff_iter, stk->buffer[buff_iter], poison);
+                    fprintf (Log_file, "\t\t [%d] = %ld %s\n", buff_iter, stk->buffer[buff_iter], poison);
                 }
             }
 
@@ -212,11 +206,12 @@ uint64_t StackDump (stack_t *stk, uint64_t err, const char *called_from, const i
 uint64_t StackResize (stack_t *stk, long new_capacity)
 {
     STACK_OK (stk);
+    if (Stack_Err) return Stack_Err;
 
     if (new_capacity <= 0) new_capacity = BUFFER_INIT_SIZE;
 
     #ifdef CANARY_PROTECTION
-        int buff_len = new_capacity * sizeof (type_t) + 2 * sizeof (CANARY_VAL);
+        unsigned long buff_len = (unsigned long) new_capacity * sizeof (type_t) + 2 * sizeof (CANARY_VAL);
         uint64_t canary = CANARY_VAL ^ (uint64_t) stk;
 
         if (stk->capacity == 0)
@@ -242,9 +237,9 @@ uint64_t StackResize (stack_t *stk, long new_capacity)
 
     stk->capacity = new_capacity;
 
-    for (int iter = stk->size; iter < stk->capacity; iter++)
+    for (long pois_iter = stk->size; pois_iter < stk->capacity; pois_iter++)
     {
-        stk->buffer [iter] = POISON;
+        stk->buffer [pois_iter] = POISON;
     }
 
     #ifdef HASH_PROTECTION
@@ -253,12 +248,14 @@ uint64_t StackResize (stack_t *stk, long new_capacity)
     #endif
 
     STACK_OK (stk);
+    if (Stack_Err) return Stack_Err;
     return OK;
 }
 
 uint64_t StackPush (stack_t* stk, type_t value)
 {
     STACK_OK (stk);
+    if (Stack_Err) return Stack_Err;
 
     if (stk->size >= stk->capacity)
     {
@@ -275,12 +272,18 @@ uint64_t StackPush (stack_t* stk, type_t value)
     #endif
 
     STACK_OK (stk);
+    if (Stack_Err) return Stack_Err;
     return OK;
 }
 
 type_t StackPop (stack_t* stk, uint64_t *err_ptr)
 {
     STACK_OK (stk);
+    if (Stack_Err)
+    {
+        *err_ptr = Stack_Err;
+        return 0;
+    }
 
     if (stk->size < 1)
     {
@@ -309,12 +312,22 @@ type_t StackPop (stack_t* stk, uint64_t *err_ptr)
     }
 
     STACK_OK (stk);
+    if (Stack_Err)
+    {
+        *err_ptr = Stack_Err;
+        return 0;
+    }
     return copy;
 }
 
 type_t StackTop (stack_t *stk, uint64_t *err_ptr)
 {
     STACK_OK (stk);
+    if (Stack_Err)
+    {
+        *err_ptr = Stack_Err;
+        return 0;
+    }
 
     if (err_ptr)
     {
@@ -329,57 +342,60 @@ type_t StackTop (stack_t *stk, uint64_t *err_ptr)
     return stk->buffer[stk->size - 1];
 }
 
-unsigned int MurmurHash (const void *stk, int len)
+unsigned long MurmurHash (const void *stk, unsigned long len)
 {
-    if (!stk) return 0;
+  if (!stk) return 0;
 
-    const unsigned int m = 0x5bd1e995;
-    const unsigned int seed = 0;
-    const int r = 24;
-    unsigned int h = seed ^ len;
+  const unsigned int m = 0x5bd1e995;
+  const unsigned int seed = 0;
+  const int r = 24;
 
-    const unsigned char * data = (const unsigned char *)stk;
-    unsigned int k = 0;
+  unsigned int h = seed ^ len;
 
-    while (len >= 4)
-    {
-        k  = data[0];
-        k |= data[1] << 8;
-        k |= data[2] << 16;
-        k |= data[3] << 24;
+  const unsigned char * data = (const unsigned char *)stk;
+  unsigned int k = 0;
 
-        k *= m;
-        k ^= k >> r;
-        k *= m;
+  while (len >= 4)
+  {
+    k  = data[0];
+    k |= data[1] << 8;
+    k |= data[2] << 16;
+    k |= data[3] << 24;
 
-        h *= m;
-        h ^= k;
+    k *= m;
+    k ^= k >> r;
+    k *= m;
 
-        data += 4;
-        len -= 4;
-    }
-
-    switch (len)
-    {
-    case 3:
-        h ^= data[2] << 16;
-    case 2:
-        h ^= data[1] << 8;
-    case 1:
-        h ^= data[0];
-        h *= m;
-    };
-
-    h ^= h >> 13;
     h *= m;
-    h ^= h >> 15;
+    h ^= k;
 
-    return h;
+    data += 4;
+    len -= 4;
+  }
+
+  switch (len)
+  {
+    case 3:
+      h ^= data[2] << 16;
+    case 2:
+      h ^= data[1] << 8;
+    case 1:
+      h ^= data[0];
+      h *= m;
+    default: break;
+  };
+
+  h ^= h >> 13;
+  h *= m;
+  h ^= h >> 15;
+
+  return h;
 }
 
 uint64_t StackDtor (stack_t *stk)
 {
     STACK_OK (stk);
+    if (Stack_Err) return Stack_Err;
 
     #ifdef CANARY_PROTECTION
         free ((uint64_t *)stk->buffer - 1);
@@ -389,8 +405,8 @@ uint64_t StackDtor (stack_t *stk)
 
     stk->buffer = (type_t *)POISON;
 
-    stk->capacity = -1;
-    stk->size = -1;
+    stk->capacity = 0;
+    stk->size = 1;
 
     #ifdef DEBUG_INFO
         if (Log_file)

@@ -44,10 +44,10 @@ struct BinaryInfo
 {
   Label *labels;
   Jump *jumps;
-  int jmp_num;
-  int lbl_num;
-  char *binary;
-  char *binary_arr;
+  unsigned long jmp_num;
+  unsigned long lbl_num;
+  unsigned char *binary;
+  unsigned char *binary_arr;
   type_t *lines;
 };
 
@@ -58,40 +58,39 @@ struct BinaryInfo
 
 #define SPRINT_BYTES(val)                                                       \
   {                                                                             \
-    char *_str = (char *)&val;                                                  \
+    unsigned char *_str = (unsigned char *)&val;                                \
     for (int i = 0; i < sizeof (val); i++)                                      \
     {                                                                           \
       bin_info->binary[i] = _str[i];                                            \
-      printf ("%02X ", (unsigned char)bin_info->binary[i]);                     \
+      printf ("%02X ", bin_info->binary[i]);                                    \
     }                                                                           \
     putc ('\n', stdout);                                                        \
   }
 
-#define SPUT(val) *bin_info->binary++ = (unsigned char)val;
+#define SPUT(val) *bin_info->binary++ = (val);
 
 #define GET_MASK(format, tmp_var, new_mask)                                     \
-  if (scanned = sscanf (text, format, tmp_var))                                 \
+  if ((arg_scanned = sscanf (text, format, tmp_var)))                           \
   {                                                                             \
     mask = new_mask;                                                            \
-    format_str = format;                                                        \
   }                                                                             \
   else
 
 #define ADD_LABEL(cmd)                                                          \
-  uint64_t cmd_hash = MurmurHash (cmd, bytes_read);                             \
+  uint64_t cmd_hash = MurmurHash (cmd, (unsigned long) bytes_read);             \
   printf ("command = %*s; hash = %lx; len = %d; ",                              \
           MAX_NAME_LEN / 2, cmd, cmd_hash, bytes_read);                         \
-  for (int iter = 0; iter < bin_info->lbl_num; iter++)                          \
+  for (unsigned long lbl = 0; lbl < bin_info->lbl_num; lbl++)                   \
   {                                                                             \
-    if (GET_LABEL_HASH (iter) == cmd_hash)                                      \
+    if (GET_LABEL_HASH (lbl) == cmd_hash)                                       \
     {                                                                           \
       printf("\nCE: LABEL DUPLICATE: %s\n", cmd);                               \
       return LABEL_DUPLICATE;                                                   \
     }                                                                           \
   }                                                                             \
   GET_LABEL_HASH (bin_info->lbl_num) = cmd_hash;                                \
-  GET_LABEL_IP (bin_info->lbl_num) = curr_ip;                                   \
-  printf("ip = %lx;\n", GET_LABEL_IP (bin_info->lbl_num));                      \
+  GET_LABEL_IP (bin_info->lbl_num) = (type_t) curr_ip;                          \
+  printf("ip = %ld;\n", GET_LABEL_IP (bin_info->lbl_num));                      \
   bin_info->lbl_num++;
 
 #define DEF_CMD(num, cmd, argc, code, hash)                                     \
@@ -100,12 +99,10 @@ struct BinaryInfo
     type_t tmp_int = 0;                                                         \
     double tmp_lf = 0;                                                          \
     unsigned char mask = 0x00;                                                  \
-    const char *format_str = "";                                                \
-    int scanned = 0;                                                            \
+    int arg_scanned = 0;                                                        \
     if (sscanf (text, "[%1[a-z]x + %ld]", (char *)&tmp_int, &tmp_int) == 2)     \
     {                                                                           \
       mask = MASK_S2RAM;                                                        \
-      format_str = "[%1[a-z]x + %d]";                                           \
     }                                                                           \
     else                                                                        \
     GET_MASK (     "[%ld]",         &tmp_int, MASK_I2RAM)                       \
@@ -113,9 +110,9 @@ struct BinaryInfo
     GET_MASK ("[%1[a-z]x]", (char *)&tmp_int, MASK_R2RAM)                       \
     GET_MASK (  "%1[a-z]x", (char *)&tmp_int,   MASK_REG)                       \
     {                                                                           \
-      scanned = EOF;                                                            \
+      arg_scanned = EOF;                                                        \
     }                                                                           \
-    if (scanned == EOF && argc > 0)                                             \
+    if (arg_scanned == EOF && argc > 0)                                         \
     {                                                                           \
       printf("\nCE: INVALID ARGUMENT command = %s\n", command);                 \
       return INVALID_ARG;                                                       \
@@ -123,61 +120,84 @@ struct BinaryInfo
     SPUT (CMD_##cmd | mask);                                                    \
     printf ("code  = %02X;\n", (unsigned char)(CMD_##cmd | mask));              \
                                                                                 \
-    int bytes_written = 0;                                                      \
+    long bytes_written = 0;                                                     \
                                                                                 \
     for (int arg = 0; arg < argc; arg++)                                        \
     {                                                                           \
-      int bytes_read = 0;                                                       \
+      int arg_bytes_read = 0;                                                   \
       if (mask == MASK_S2RAM)                                                   \
       {                                                                         \
         char regv = 0;                                                          \
         type_t offset = 0;                                                      \
-        sscanf (text, format_str, &regv, &offset);                              \
-        printf("args = %d and %ld; bytes = ", regv, offset);                    \
+        arg_scanned = sscanf (text, "[%1[a-z]x + %ld]", &regv, &offset);        \
+        if (!arg_scanned)                                                       \
+        {                                                                       \
+          printf ("INVALID_ARG\n");                                             \
+          return INVALID_ARG;                                                   \
+        }                                                                       \
+        printf ("args = %d and %ld; bytes = ", regv, offset);                   \
         SPRINT_BYTES (regv);                                                    \
         bin_info->binary += 1;                                                  \
         bytes_written += 1;                                                     \
         SPRINT_BYTES (offset);                                                  \
-        bytes_written += sizeof(type_t);                                        \
+        bytes_written += (long) sizeof(type_t);                                 \
       }                                                                         \
       else if (mask == MASK_I2RAM)                                              \
       {                                                                         \
         type_t argv = 0;                                                        \
-        int arg_scanned = sscanf (text, format_str, &argv);                     \
+        arg_scanned = sscanf (text, "[%ld]", &argv);                            \
         if (!arg_scanned)                                                       \
         {                                                                       \
-          printf("INVALID_ARG\n");                                              \
+          printf ("INVALID_ARG\n");                                             \
           return INVALID_ARG;                                                   \
         }                                                                       \
-        printf("value = %ld; bytes = ", argv);                                  \
+        printf ("value = %ld; bytes = ", argv);                                 \
         type_t value = (argv * 1000);                                           \
         SPRINT_BYTES (value);                                                   \
-        bytes_written += sizeof(type_t);                                        \
+        bytes_written += (long) sizeof(type_t);                                 \
       }                                                                         \
       else if (mask == MASK_IMM)                                                \
       {                                                                         \
         double argv = 0;                                                        \
-        int arg_scanned = sscanf (text, format_str, &argv);                     \
+        arg_scanned = sscanf (text, "%lf", &argv);                              \
         if (!arg_scanned)                                                       \
         {                                                                       \
-          printf("INVALID_ARG\n");                                              \
+          printf ("INVALID_ARG\n");                                             \
           return INVALID_ARG;                                                   \
         }                                                                       \
-        printf("value = %06.3lf; bytes = ", argv);                              \
+        printf ("value = %06.3lf; bytes = ", argv);                             \
         type_t value = (type_t)(argv * 1000);                                   \
         SPRINT_BYTES (value);                                                   \
-        bytes_written += sizeof(type_t);                                        \
+        bytes_written += (long) sizeof(type_t);                                 \
+      }                                                                         \
+      else if (mask == MASK_R2RAM)                                              \
+      {                                                                         \
+        char argv = 0;                                                          \
+        arg_scanned = sscanf (text, "[%1[a-z]x]", &argv);                       \
+        if (!arg_scanned)                                                       \
+        {                                                                       \
+          printf ("INVALID_ARG\n");                                             \
+          return INVALID_ARG;                                                   \
+        }                                                                       \
+        printf ("value = %d; bytes = ", argv);                                  \
+        type_t value = (type_t)(argv * 1000);                                   \
+        SPRINT_BYTES (value);                                                   \
+        bytes_written += (long) sizeof(type_t);                                 \
       }                                                                         \
       else                                                                      \
       {                                                                         \
-        uint64_t argv = 0;                                                      \
-        sscanf (text, format_str, &argv);                                       \
-        printf("arg = %ld; bytes = ", argv);                                    \
-        char argv_ch = (char) argv;                                             \
-        SPRINT_BYTES (argv_ch);                                                 \
+        char argv = 0;                                                          \
+        arg_scanned = sscanf (text, "%1[a-z]x", &argv);                         \
+        if (!arg_scanned)                                                       \
+        {                                                                       \
+          printf ("INVALID_ARG\n");                                             \
+          return INVALID_ARG;                                                   \
+        }                                                                       \
+        printf ("arg = %d; bytes = ", argv);                                    \
+        SPRINT_BYTES (argv);                                                    \
         bytes_written += 1;                                                     \
       }                                                                         \
-      text += bytes_read;                                                       \
+      text += arg_bytes_read;                                                   \
     }                                                                           \
     return bytes_written;                                                       \
   }                                                                             \
@@ -186,7 +206,7 @@ struct BinaryInfo
 #define DEF_JMP_CMD(code, name, argc, action, hash)                             \
     if (command_hash == hash)                                                   \
     {                                                                           \
-      printf ("code  = %02X; bytes = \n", (unsigned char)(code));               \
+      printf ("code  = %02X; bytes = \n", (unsigned int)code);                  \
       SPUT (code);                                                              \
                                                                                 \
       char jmp_arg[MAX_NAME_LEN] = {};                                          \
@@ -208,12 +228,12 @@ struct BinaryInfo
           return INVALID_ARG;                                                   \
         }                                                                       \
         bin_info->jumps[bin_info->jmp_num].destination = dest_line;             \
-        GET_JMP_IP (bin_info->jmp_num) = curr_ip;                               \
+        GET_JMP_IP (bin_info->jmp_num) = (type_t) curr_ip;                      \
         bin_info->jmp_num++;                                                    \
         SPRINT_BYTES (dummy);                                                   \
         return sizeof (type_t);                                                 \
       }                                                                         \
-      uint64_t arg_hash = MurmurHash (jmp_arg, arg_len - 1);                    \
+      uint64_t arg_hash = MurmurHash (jmp_arg, (unsigned long) arg_len - 1);    \
                                                                                 \
       for (int iter = 0; iter < bin_info->lbl_num; iter++)                      \
       {                                                                         \
@@ -226,17 +246,17 @@ struct BinaryInfo
         }                                                                       \
       }                                                                         \
       SPRINT_BYTES (dummy);                                                     \
-      GET_JMP_IP (bin_info->jmp_num) = curr_ip;                                 \
+      GET_JMP_IP (bin_info->jmp_num) = (type_t) curr_ip;                        \
       GET_JMP_HASH (bin_info->jmp_num) = arg_hash;                              \
       bin_info->jmp_num++;                                                      \
       return sizeof (type_t);                                                   \
     }                                                                           \
     else
 
-int get_io_args (int argc, const char **argv, config *curr_config);
+int get_io_args (int argc, const char **argv, Config *curr_config);
 
-int ProcessCommand (const char *text, FILE *output, BinaryInfo *bin_info);
+long ProcessCommand (const char *text, FILE *output, BinaryInfo *bin_info);
 
-int Assemble (file_info *source, char *binary_arr);
+long Assemble (File_info *source, unsigned char *binary_arr);
 
 int Link (BinaryInfo *bin_info);

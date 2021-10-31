@@ -4,10 +4,7 @@
  *********************************************************************/
 #include "files.h"
 
-//  Убирает предупреждение о функциях библиотеки string.h в Visual Studio
-#pragma warning(disable:4996)
-
-int read_all_lines (file_info *info, const char* file_name)
+long int read_all_lines (File_info *info, const char* file_name)
 {
     assert (info);
     assert (file_name);
@@ -27,10 +24,10 @@ int read_all_lines (file_info *info, const char* file_name)
 
     fclose (source);
 
-    string **strings = (string **) calloc (BUFF_SIZE + 1, sizeof (string *)); //TODO arr of struct
+    String **strings = (String **) calloc (BUFF_SIZE + 1, sizeof (String *)); //TODO arr of struct
     assert (strings);
 
-    string *strings_buff = (string *) calloc (BUFF_SIZE + 1, sizeof (string));
+    String *strings_buff = (String *) calloc (BUFF_SIZE + 1, sizeof (String));
 
     for (int i = 0; i < BUFF_SIZE + 1; i++)
     {
@@ -38,7 +35,7 @@ int read_all_lines (file_info *info, const char* file_name)
         assert (strings [i]);
     }
 
-    string **strings_ptr = strings;
+    String **strings_ptr = strings;
 
     for (char *token = strtok (text_buff, "\n\r"); token; token = strtok (NULL, "\n\r"))
     {
@@ -72,14 +69,14 @@ char* read_to_end (FILE *source)
 {
     assert (source);
 
-    int length = get_len (source);
+    long unsigned int length = get_len (source);
 
     char *text_buff = (char *) calloc ( length + 1, sizeof ( char ) );
     assert (text_buff);
 
-    int sym_read = fread (text_buff, sizeof (*text_buff), length, source);
+    long unsigned int sym_read = fread (text_buff, sizeof (*text_buff), length, source);
 
-    if (sym_read < 0 || sym_read > length)
+    if (sym_read > length)
     {
          free (text_buff);
          printf ("ERROR: Reading text file failed");
@@ -92,18 +89,18 @@ char* read_to_end (FILE *source)
     return text_buff;
 }
 
-int get_len (FILE *file)
+long unsigned int get_len (FILE *file)
 {
     assert (file);
 
     fseek (file, 0, SEEK_END);
-    int length = ftell (file);
+    long int length = ftell (file);
     fseek (file, 0, SEEK_SET);
-
-    return length;
+    if (length < 0) return 0;
+    return (unsigned long int)length;
 }
 
-int show_res (file_info *file_text, const char * output_file)
+int show_res (File_info *file_text, const char * output_file)
 {
     assert (file_text);
 
@@ -126,15 +123,15 @@ int show_res (file_info *file_text, const char * output_file)
     return 0;
 }
 
-void free_info (file_info *info)
+void free_info (File_info *info)
 {
-    assert (info && "Invalid pointer: file_info");
+    assert (info && "Invalid pointer: File_info");
 
     free (info->text);
     free (info->strs);
 }
 
-void get_params (int argc, const char **argv, config *current)
+void get_params (int argc, const char **argv, Config *current)
 {
     assert (argv);
     assert (current);

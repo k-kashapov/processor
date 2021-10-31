@@ -4,7 +4,7 @@ push 16
 pop bx ; pixels y
 push 448
 pop cx ; video_mem
-push 3.5
+push 3
 pop rx ; radius
 
 push ax
@@ -125,6 +125,7 @@ fillAt:
 
     push cx
     add
+
     pop tx
 
     push rx
@@ -134,6 +135,7 @@ fillAt:
     push 256
     mul       ; 0x10 * rx - color index in second byte
     add
+
     pop [tx]
     ret
 

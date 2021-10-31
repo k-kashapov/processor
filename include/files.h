@@ -21,10 +21,10 @@ enum FilesExitCodes
 /**
  * \brief Структура, содержащая строку и её длину
  */
-struct string
+struct String
 {
     char *text;
-    int len;
+    long int len;
 };
 
 /**
@@ -35,7 +35,7 @@ struct string
  * \param mode        Режим сортировки строк
  * \param reverse     bool Сортировать строки по их окончанию
  */
-struct config
+struct Config
 {
     const char *input_file  = "source.txt";
     const char *output_file = "code.asm";
@@ -48,11 +48,11 @@ struct config
  * \param str_ptrs  Массив указателей на строки в файле
  * \param lines_num Количество строк
  */
-struct file_info
+struct File_info
 {
     char *text;
-    string **strs;
-    int  lines_num;
+    String **strs;
+    long int  lines_num;
 };
 
 /**
@@ -62,7 +62,7 @@ struct file_info
  * \param  file_name    Имя файла, который будет прочитан
  * \return              Количество прочитанных строк
  */
-int read_all_lines (file_info *info, const char *file_name);
+long int read_all_lines (File_info *info, const char *file_name);
 
 /**
  * \brief Пробует открыть файл.
@@ -83,7 +83,7 @@ char* read_to_end (FILE *source);
  * \param  file Указатель на файл
  * \return      Длина файла
  */
-int get_len (FILE *file);
+long unsigned int get_len (FILE *file);
 
 /**
  * \brief Записывает все строки из структуры source в файл output_file
@@ -91,14 +91,14 @@ int get_len (FILE *file);
  * \param source      Структура, откуда будут напечатаны строки
  * \param output_file Название файла, в который необходимо напечатать строки
  */
-int show_res (file_info *source, const char * output_file);
+int show_res (File_info *source, const char * output_file);
 
 /**
  * \brief Очищает строки, содержащиеся в структуре info
  *
  * \param info Структура, память которой будет очищена
  */
-void free_info (file_info *info);
+void free_info (File_info *info);
 
 /**
  * \brief Получает список аргументов программы. Аргументы задают имена входного и выходного файлов
@@ -107,4 +107,4 @@ void free_info (file_info *info);
  * \param argv    Массив аргументов
  * \param current Структура, хранящая имена файлов
  */
-void get_params (int argc, const char **argv, config *current);
+void get_params (int argc, const char **argv, Config *current);

@@ -31,7 +31,7 @@ const char SetColor[8][10] =
   if (addr < 0 || addr > REG_NUM)                                               \
   {                                                                             \
     printf("RE: INVALID ARGUMENT; command = %d; arg = %ld\n",                   \
-    command, addr);                                                             \
+    cmd, addr);                                                                 \
     return NULL;                                                                \
   }
 
@@ -40,7 +40,7 @@ const char SetColor[8][10] =
   if (addr < 0 || addr > RAM_MEM)                                               \
   {                                                                             \
     printf("RE: INVALID ARGUMENT; command = %d; arg = %ld\n",                   \
-    command, addr);                                                             \
+    cmd, addr);                                                                 \
     return NULL;                                                                \
   }
 
@@ -65,10 +65,10 @@ const char SetColor[8][10] =
 
 #define in_code                                                                 \
   {                                                                             \
-    double val = 0;                                                             \
+    double in_val = 0;                                                          \
     printf ("Waiting for input...\n");                                          \
-    scanf("%lf", &val);                                                         \
-    StackPush(proc->stk, (type_t) (val * 1000));                                \
+    scanf("%lf", &in_val);                                                      \
+    StackPush(proc->stk, (type_t) (in_val * 1000));                             \
   }
 
 #define pop_code                                                                \
@@ -112,7 +112,7 @@ const char SetColor[8][10] =
       printf("RUNTIME ERROR: division by zero\n");                              \
       return DIV_BY_ZERO;                                                       \
     }                                                                           \
-    StackPush (proc->stk, 1000.0f / b * a);                                     \
+    StackPush (proc->stk, (type_t) (1000.0f / (float) b * (float) a));          \
   }
 
 #define out_code                                                                \
@@ -129,7 +129,7 @@ const char SetColor[8][10] =
 
 #define hlt_code return CMD_hlt;
 
-#define call_action !StackPush (proc->stk, proc->ip + sizeof (type_t))
+#define call_action !StackPush (proc->stk, (type_t) (proc->ip + sizeof (type_t)))
 
 #define sin_code                                                                \
   {                                                                             \
@@ -142,7 +142,7 @@ const char SetColor[8][10] =
       command, pop_err);                                                        \
       return pop_err;                                                           \
     }                                                                           \
-    StackPush (proc->stk, sin (((double)pop_val)/1000)*1000);                   \
+    StackPush (proc->stk, (type_t) sin (((double)pop_val) / 1000) * 1000);          \
   }
 
 #define cos_code                                                                \
@@ -156,7 +156,7 @@ const char SetColor[8][10] =
       command, pop_err);                                                        \
       return pop_err;                                                           \
     }                                                                           \
-    StackPush (proc->stk, cos (((double)pop_val) / 1000) * 1000);               \
+    StackPush (proc->stk, (type_t) cos (((double)pop_val) / 1000) * 1000);      \
   }
 
 #define sqrt_code                                                               \
@@ -170,21 +170,20 @@ const char SetColor[8][10] =
       command, pop_err);                                                        \
       return pop_err;                                                           \
     }                                                                           \
-    StackPush (proc->stk, sqrt (((double)pop_val) / 1000) * 1000);              \
+    StackPush (proc->stk, (type_t) sqrt (((double)pop_val) / 1000) * 1000);     \
   }
 
 #define drw_code                                                                \
   {                                                                             \
-    system ("clear");                                                           \
-    int len = RAM_MEM - (proc->video_mem - proc->RAM);                          \
-    for (int Ypixel = 0; Ypixel < len; Ypixel += proc->xRes)                    \
+    long int len = RAM_MEM - (proc->video_mem - proc->RAM);                     \
+    for (long Ypixel = 0; Ypixel < len; Ypixel += proc->xRes)                   \
     {                                                                           \
-      for (int i = 0; i < proc->xRes; i++)                                      \
+      for (long i = 0; i < proc->xRes; i++)                                     \
       {                                                                         \
         type_t pixel_val = *(proc->video_mem + Ypixel + i) / 1000;              \
-        unsigned char pixel_sym = pixel_val;                                    \
-        unsigned char color_val = (pixel_val >> 8) % 8;                         \
-        printf (SetColor[color_val]);                                           \
+        unsigned char pixel_sym = (unsigned char) pixel_val;                    \
+        unsigned char color_val = (unsigned char) ((pixel_val >> 8) % 8);       \
+        printf ("%s", SetColor[color_val]);                                     \
         printf ("%c ", pixel_sym ? pixel_sym : ' ');                            \
       }                                                                         \
       printf ("\n");                                                            \
@@ -248,13 +247,13 @@ const char SetColor[8][10] =
   #define ret_code                                                              \
     {                                                                           \
       uint64_t pop_err = 0;                                                     \
-      type_t val = StackPop (proc->stk, &pop_err);                              \
+      type_t ret_val = StackPop (proc->stk, &pop_err);                          \
       if (pop_err)                                                              \
       {                                                                         \
         printf("RUNTIME ERROR: in function: out; error: %02lX\n", pop_err);     \
         return pop_err;                                                         \
       }                                                                         \
-      proc->ip = val;                                                           \
+      proc->ip = (unsigned long) ret_val;                                       \
     }
 
   #define DEF_CMD(num, name, argc, code, hash)                                  \
@@ -282,7 +281,7 @@ const char SetColor[8][10] =
       if (res)                                                                  \
       {                                                                         \
         val = *(type_t *)(proc->code + proc->ip);                               \
-        proc->ip = val - sizeof (Header_t);                                     \
+        proc->ip = (unsigned long) val - sizeof (Header_t);                     \
       }                                                                         \
       else                                                                      \
       {                                                                         \
@@ -306,28 +305,26 @@ enum ExitCodes
 struct processor
 {
   stack_t *stk;
-  char *code;
-  int bytes_num;
-  int ip;
-  type_t reg[REG_NUM];
-  type_t RAM[RAM_MEM];
+  unsigned char *code;
+  unsigned long bytes_num;
+  long unsigned int ip;
+  type_t *reg;
+  type_t *RAM;
   type_t *video_mem;
-  int xRes;
-  int yRes;
+  unsigned long xRes;
+  unsigned long yRes;
 };
 
-int get_io_args (int argc, const char **argv, config *curr_config);
+int get_io_args (int argc, const char **argv, Config *curr_config);
 
-int read_code (processor *proc, config *io_config);
+int read_code (processor *proc, Config *io_config);
 
 int get_header (processor *proc);
 
-int run_binary (processor *proc);
+uint64_t run_binary (processor *proc);
 
-int process_command (processor *proc);
+uint64_t process_command (processor *proc);
 
-type_t *get_arg (processor *proc, char cmd);
+type_t *get_arg (processor *proc, unsigned char cmd);
 
 int dump_proc (processor *proc);
-
-int dumb_sleep (double ms);

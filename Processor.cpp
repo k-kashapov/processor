@@ -14,11 +14,14 @@
 
 int main(int argc, const char** argv)
 {
-  config io_config;
+  Config io_config;
   io_config.input_file = "code.asm";
   get_io_args (argc, argv, &io_config);
 
   processor proc = {};
+  proc.reg = (type_t *) calloc (REG_NUM, sizeof (type_t));
+  proc.RAM = (type_t *) calloc (RAM_MEM, sizeof (type_t));
+
   stack_t proc_stk = {};
   proc.stk = &proc_stk;
 
@@ -28,9 +31,9 @@ int main(int argc, const char** argv)
   if (header_err)
     return header_err;
 
-  int runtime_err = run_binary (&proc);
+  uint64_t runtime_err = run_binary (&proc);
   if (runtime_err)
-    return runtime_err;
+    return (int) runtime_err;
 
   return 0;
 }

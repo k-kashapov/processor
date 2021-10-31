@@ -16,26 +16,26 @@
 
 int main (int argc, const char **argv)
 {
-  file_info source;
-  config io_config;
+  File_info source;
+  Config io_config;
   get_io_args (argc, argv, &io_config);
 
   read_all_lines (&source, io_config.input_file);
 
-  char binary_arr[MAX_BINARY_LEN] = {};
+  unsigned char binary_arr[MAX_BINARY_LEN] = {};
 
-  int char_num = Assemble (&source, binary_arr);
+  long char_num = Assemble (&source, binary_arr);
   if (char_num < 1)
   {
     printf("INVALID SYNTAX\n");
     return INVALID_SYNTAX;
   }
 
-  printf ("char num = %d\n", char_num);
+  printf ("char num = %ld\n", char_num);
 
   FILE *output = fopen (io_config.output_file, "wb");
 
-  fwrite (binary_arr, 1, char_num, output);
+  fwrite (binary_arr, 1, (size_t) char_num, output);
 
   free_info (&source);
   fclose (output);
