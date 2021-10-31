@@ -22,13 +22,13 @@ int get_io_args (int argc, const char **argv, config *curr_config)
   return 0;
 }
 
-int ProcessCommand (const char *text, ARRAYS)
+int ProcessCommand (const char *text, BinaryInfo *bin_info)
 {
   char command[MAX_NAME_LEN] = {};
   int bytes_read = 0;
-  int max_line = *lines;
+  int max_line = *bin_info->lines;
 
-  long unsigned int curr_ip = binary - binary_arr;
+  long unsigned int curr_ip = bin_info->binary - bin_info->binary_arr;
 
   printf("\naddr = %#06lx; text = %*s; ",
           curr_ip - sizeof (Header_t), MAX_NAME_LEN, text);
@@ -69,26 +69,24 @@ int Assemble (file_info *source, char *binary_arr)
 
   type_t *lines = (type_t *) calloc (source->lines_num + 1, sizeof (type_t));
 
-  char *binary = binary_arr + sizeof (Header_t);
-
   lines[0] = source->lines_num;
 
   printf ("lines num = %d\n", source->lines_num);
 
-  JL_info jl_arr = {};
-  jl_arr.labels = labels;
-  jl_arr.jumps = jumps;
+  BinaryInfo bin_info = {};
+  bin_info.labels = labels;
+  bin_info.jumps = jumps;
+  bin_info.binary = binary_arr + sizeof (Header_t);
+  bin_info.binary_arr = binary_arr;
+  bin_info.lines = lines;
 
   int char_num = 0;
   int last_cmd_len = 0;
 
   for (int ip = 0; ip < source->lines_num; ip++)
   {
-    lines[ip + 1] = binary - binary_arr;
-    last_cmd_len = ProcessCommand
-    (
-      source->strs[ip]->text, binary, binary_arr, &jl_arr, lines
-    );
+    lines[ip + 1] = bin_info.binary - binary_arr;
+    last_cmd_len = ProcessCommand (source->strs[ip]->text, &bin_info);
 
     if (last_cmd_len < 0)
     {
@@ -96,9 +94,9 @@ int Assemble (file_info *source, char *binary_arr)
                \nCOMPILATION ERROR: invalid command at line %d\n", ip + 1);
       return INVALID_SYNTAX;
     }
-
-    binary += last_cmd_len;
-    char_num += last_cmd_len;
+    printf ("bytes written = %d\n", last_cmd_len + 1);
+    bin_info.binary += last_cmd_len;
+    char_num += last_cmd_len + 1;
   }
 
   Header_t header;
@@ -106,12 +104,10 @@ int Assemble (file_info *source, char *binary_arr)
 
   printf ("Header:\n");
 
-  binary = binary_arr;
-  SPRINT_BYTES (header);
+  *(Header_t *)binary_arr = header;
 
-
-  int linking_err = Link (binary, binary_arr, lines, &jl_arr);
-  if (!linking_err) return linking_err;
+  int linking_err = Link (&bin_info);
+  if (linking_err) return linking_err;
   printf("bytes total = %d\n", char_num);
 
   free (lines);
@@ -119,43 +115,47 @@ int Assemble (file_info *source, char *binary_arr)
   return char_num + sizeof (Header_t);
 }
 
-int Link (char *binary, char *binary_arr, type_t *lines, JL_info *jl_arr)
+int Link (BinaryInfo *bin_info)
 {
   printf ("Linking: \n");
 
-  for (int jmp = 0; jmp < jl_arr->jmp_num; jmp++)
+  for (int jmp = 0; jmp < bin_info->jmp_num; jmp++)
   {
-    int destination = jl_arr->jumps[jmp].destination;
+    int destination = bin_info->jumps[jmp].destination;
 
     if (destination > 0)
     {
-      printf ("LINE JMP to %x; dest ip = %lx; ", destination, lines[destination]);
+      printf ("LINE JMP to %x; dest ip = %lx; ",
+              destination, bin_info->lines[destination]);
 
-      binary = binary_arr + (GET_JMP_IP (jmp) + 1);
-      printf("print at %#06lx\nbytes = ", binary - binary_arr);
+      bin_info->binary = bin_info->binary_arr + (GET_JMP_IP (jmp) + 1);
+      printf("print at %#06lx\nbytes = ",
+              bin_info->binary - bin_info->binary_arr);
 
-      SPRINT_BYTES (lines[destination]);
+      SPRINT_BYTES (bin_info->lines[destination]);
       continue;
     }
 
     int lbl = 0;
 
-    for (lbl = 0; lbl < jl_arr->lbl_num; lbl++)
+    for (lbl = 0; lbl < bin_info->lbl_num; lbl++)
     {
       if (GET_JMP_HASH (jmp) == GET_LABEL_HASH (lbl))
       {
         printf ("HASH FOUND: JMP to %lx; dest ip = %lx; ",
                 GET_LABEL_IP (lbl), GET_JMP_IP (jmp) + 1);
 
-        binary = binary_arr + (GET_JMP_IP (jmp) + 1);
+        bin_info->binary = bin_info->binary_arr + (GET_JMP_IP (jmp) + 1);
 
-        printf("print at %#06lx\nbytes = ", binary - binary_arr);
+        printf("print at %#06lx\nbytes = ",
+                bin_info->binary - bin_info->binary_arr);
+
         SPRINT_BYTES (GET_LABEL_IP (lbl));
         break;
       }
     }
 
-    if (lbl >= jl_arr->lbl_num)
+    if (lbl >= bin_info->lbl_num)
     {
       printf ("\nCE: STRAY JUMP\n");
       return STRAY_JUMP;

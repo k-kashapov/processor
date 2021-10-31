@@ -96,8 +96,8 @@ int run_binary (processor *proc)
       if (result)
       {
         printf ("\nFATAL: command = %d at %06X; error = %d\n",
-        proc->code[proc->ip - 1], proc->ip - 1, error);
-        return error;
+        proc->code[proc->ip - 1], proc->ip - 1, result);
+        return result;
       }
   }
 
@@ -200,14 +200,14 @@ int dump_proc (processor *proc)
   fprintf(log, "<pre>");
   for (int printer = 0; printer < proc->bytes_num; printer++)
   {
-    fprintf (log, "%02X ", (unsigned char)printer);
+    fprintf (log, "%#*x ", 5, printer);
   }
   fprintf(log, "\n");
   for (int printer = 0; printer < proc->bytes_num; printer++)
   {
-    fprintf (log, "%02X ", ((unsigned char*)proc->code)[printer]);
+    fprintf (log, "%05X ", ((unsigned char*)proc->code)[printer]);
   }
-  fprintf(log, "\n%*s\n", proc->ip*3, "^");
+  fprintf(log, "\n%*s\n", proc->ip*6, "^");
 
   fprintf(log, "Stack size     = %d\n", proc->stk->size);
   fprintf(log, "Stack capacity = %d\n", proc->stk->capacity);

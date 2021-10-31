@@ -7,12 +7,24 @@
 
 enum MASKS
 {
-  MASK_IMM   = 0x40,
-  MASK_REG   = 0x20,
-  MASK_I2RAM = 0xC0,
-  MASK_R2RAM = 0xA0,
-  MASK_S2RAM = 0xE0,
+  MASK_IMM   = 0x40, // Immediate (4)
+  MASK_REG   = 0x20, // To register (ax)
+  MASK_I2RAM = 0xC0, // Immediate to RAM ([4])
+  MASK_R2RAM = 0xA0, // Register [ax] to RAM ([ax])
+  MASK_S2RAM = 0xE0, // Summ to RAM ([ax+4])
 };
+
+const char SetColor[8][10] =
+  {
+    "\033[0;37m",
+    "\033[0;30m",
+    "\033[0;31m",
+    "\033[0;32m",
+    "\033[0;33m",
+    "\033[0;34m",
+    "\033[0;35m",
+    "\033[0;36m",
+  };
 
 #define GET_NEXT_CHAR                                                           \
   addr = *(proc->code + proc->ip) - 'a';                                        \
@@ -144,7 +156,7 @@ enum MASKS
       command, pop_err);                                                        \
       return pop_err;                                                           \
     }                                                                           \
-    StackPush (proc->stk, cos (((double)pop_val)/1000)*1000);                   \
+    StackPush (proc->stk, cos (((double)pop_val) / 1000) * 1000);               \
   }
 
 #define sqrt_code                                                               \
@@ -158,7 +170,7 @@ enum MASKS
       command, pop_err);                                                        \
       return pop_err;                                                           \
     }                                                                           \
-    StackPush (proc->stk, sqrt (((double)pop_val)/1000)*1000);                  \
+    StackPush (proc->stk, sqrt (((double)pop_val) / 1000) * 1000);              \
   }
 
 #define drw_code                                                                \
@@ -169,9 +181,11 @@ enum MASKS
     {                                                                           \
       for (int i = 0; i < proc->xRes; i++)                                      \
       {                                                                         \
-        printf (" ");                                                           \
-        char pixel_val = *(proc->video_mem + Ypixel + i)/1000;                  \
-        putc (pixel_val ? pixel_val : ' ', stdout);                             \
+        type_t pixel_val = *(proc->video_mem + Ypixel + i) / 1000;              \
+        unsigned char pixel_sym = pixel_val;                                    \
+        unsigned char color_val = (pixel_val >> 8) % 8;                         \
+        printf (SetColor[color_val]);                                           \
+        printf ("%c ", pixel_sym ? pixel_sym : ' ');                            \
       }                                                                         \
       printf ("\n");                                                            \
     }                                                                           \
@@ -218,10 +232,10 @@ enum MASKS
       uint64_t res = action;                                                    \
       if (res)                                                                  \
       {                                                                         \
-        printf("JUMP from %x\n", proc->ip);                                     \
+        printf("JUMP from %lx\n", proc->ip - sizeof (Header_t));                \
         val = *(type_t *)(proc->code + proc->ip);                               \
         proc->ip = val - sizeof (Header_t);                                     \
-        printf ("Moved ip to %02X\n", (unsigned char)val);                      \
+        printf ("Moved ip to %02lX\n", val - sizeof (Header_t));                \
       }                                                                         \
       else                                                                      \
       {                                                                         \
