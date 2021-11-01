@@ -175,7 +175,7 @@ type_t *get_arg (processor *proc, unsigned char cmd)
     type_t addr = 0;
     GET_NEXT_CHAR;
     proc->ip += 1;
-    
+
     return (proc->reg + addr);
   }
   else if (CHECK_MASK (cmd, MASK_IMM))

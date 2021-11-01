@@ -53,6 +53,7 @@ struct File_info
     char *text;
     String **strs;
     long int  lines_num;
+    String *strs_buff;
 };
 
 /**

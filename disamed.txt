@@ -1,0 +1,7 @@
+push 5.000000 
+push 6.000000 
+sub 
+out 
+hlt 
+hlt 
+

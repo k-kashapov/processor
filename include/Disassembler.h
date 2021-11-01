@@ -1,12 +1,24 @@
+#include "Info.h"
 #include "files.h"
 #include "Stack.h"
-#include "enum.h"
+#include "Processor.h"
 
-const int REG_NUM = 4;
-
-// TODO argv as a reg number
+#undef DEF_CMD
+#undef DEF_JMP_CMD
 
 #define DEF_CMD(num, name, argc, cmd)                     \
+    case CMD_##name:                                      \
+      fprintf (output, #name " ");                        \
+      for (int argn = 0; argn < argc; argn++)             \
+      {                                                   \
+        type_t argv = *(type_t*)(proc->code + proc->ip);  \
+        fprintf (output, "%lf ", (double)argv / 1000);    \
+        proc->ip += sizeof (type_t);                      \
+      }                                                   \
+      fputc ('\n', output);                               \
+      break;
+
+#define DEF_JMP_CMD(num, name, argc, action, hash)        \
     case CMD_##name:                                      \
       fprintf (output, #name " ");                        \
       for (int argn = 0; argn < argc; argn++)             \

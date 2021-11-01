@@ -59,10 +59,10 @@ struct BinaryInfo
 #define SPRINT_BYTES(val)                                                       \
   {                                                                             \
     unsigned char *_str = (unsigned char *)&val;                                \
-    for (int i = 0; i < sizeof (val); i++)                                      \
+    for (unsigned long byte = 0; byte < sizeof (val); byte++)                   \
     {                                                                           \
-      bin_info->binary[i] = _str[i];                                            \
-      printf ("%02X ", bin_info->binary[i]);                                    \
+      bin_info->binary[byte] = _str[byte];                                      \
+      printf ("%02X ", bin_info->binary[byte]);                                 \
     }                                                                           \
     putc ('\n', stdout);                                                        \
   }
@@ -94,7 +94,7 @@ struct BinaryInfo
   bin_info->lbl_num++;
 
 #define DEF_CMD(num, cmd, argc, code, hash)                                     \
-  if (hash == command_hash)                                                     \
+  case hash:                                                                    \
   {                                                                             \
     type_t tmp_int = 0;                                                         \
     double tmp_lf = 0;                                                          \
@@ -172,8 +172,8 @@ struct BinaryInfo
       }                                                                         \
       else if (mask == MASK_R2RAM)                                              \
       {                                                                         \
-        char argv = 0;                                                          \
-        arg_scanned = sscanf (text, "[%1[a-z]x]", &argv);                       \
+        int argv = 0;                                                           \
+        arg_scanned = sscanf (text, "[%1[a-z]x]", (char *)&argv);               \
         if (!arg_scanned)                                                       \
         {                                                                       \
           printf ("INVALID_ARG\n");                                             \
@@ -186,8 +186,8 @@ struct BinaryInfo
       }                                                                         \
       else                                                                      \
       {                                                                         \
-        char argv = 0;                                                          \
-        arg_scanned = sscanf (text, "%1[a-z]x", &argv);                         \
+        int argv = 0;                                                           \
+        arg_scanned = sscanf (text, "%1[a-z]x", (char *)&argv);                 \
         if (!arg_scanned)                                                       \
         {                                                                       \
           printf ("INVALID_ARG\n");                                             \
@@ -201,10 +201,10 @@ struct BinaryInfo
     }                                                                           \
     return bytes_written;                                                       \
   }                                                                             \
-  else
+  break;
 
 #define DEF_JMP_CMD(code, name, argc, action, hash)                             \
-    if (command_hash == hash)                                                   \
+    case hash:                                                                  \
     {                                                                           \
       printf ("code  = %02X; bytes = \n", (unsigned int)code);                  \
       SPUT (code);                                                              \
@@ -235,11 +235,11 @@ struct BinaryInfo
       }                                                                         \
       uint64_t arg_hash = MurmurHash (jmp_arg, (unsigned long) arg_len - 1);    \
                                                                                 \
-      for (int iter = 0; iter < bin_info->lbl_num; iter++)                      \
+      for (unsigned long lbl_iter = 0; lbl_iter < bin_info->lbl_num; lbl_iter++)\
       {                                                                         \
-        if (GET_LABEL_HASH (iter) == arg_hash)                                  \
+        if (GET_LABEL_HASH (lbl_iter) == arg_hash)                              \
         {                                                                       \
-          type_t dest_ip = GET_LABEL_IP (iter);                                 \
+          type_t dest_ip = GET_LABEL_IP (lbl_iter);                             \
           SPRINT_BYTES (dest_ip);                                               \
           putc ('\n', stdout);                                                  \
           return sizeof (type_t);                                               \
@@ -251,11 +251,11 @@ struct BinaryInfo
       bin_info->jmp_num++;                                                      \
       return sizeof (type_t);                                                   \
     }                                                                           \
-    else
+    break;
 
 int get_io_args (int argc, const char **argv, Config *curr_config);
 
-long ProcessCommand (const char *text, FILE *output, BinaryInfo *bin_info);
+long ProcessCommand (const char *text, BinaryInfo *bin_info);
 
 long Assemble (File_info *source, unsigned char *binary_arr);
 

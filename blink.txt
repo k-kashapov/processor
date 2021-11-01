@@ -39,14 +39,14 @@ loop:
     pop rx ; changing radius
 
     push rx
-    push 10
+    push 7
     jb :notBig
     push -1
     pop ix ; change inc direction
 
     notBig:
         push rx
-        push 2
+        push 0.5
         ja :notSmall
         push 1
         pop ix ; change inc direction

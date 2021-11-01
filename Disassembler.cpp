@@ -1,3 +1,4 @@
+#include "enum.h"
 #include "Disassembler.h"
 #include "check_unique.h"
 
@@ -8,27 +9,31 @@
 //   то и за угол стрелять можно будет?
 // — Можно, но по Уставу не положено.
 
-int main (int argc, const char **argv)
+int main(int argc, const char** argv)
 {
-  processor proc = {};
-  stack_t proc_stk = {};
-  proc.stk = &proc_stk;
+  Config io_config;
+  io_config.input_file = "code.asm";
+  io_config.output_file = "disamed.txt";
+  get_io_args (argc, argv, &io_config);
 
-  read_code (&proc);
+  processor proc = {};
+
+  read_code (&proc, &io_config);
 
   int header_err = get_header (&proc);
   if (header_err)
     return header_err;
 
   FILE *output = NULL;
-  open_file (&output, "disamed.txt", "wt");
+  open_file (&output, io_config.output_file, "wt");
   if (!output)
     return OPEN_FILE_FAILED;
 
-  int runtime_err = disassemble (&proc, output);
+  uint64_t runtime_err = disassemble (&proc);
   if (runtime_err)
-    return runtime_err;
+    return (int) runtime_err;
 
   fclose (output);
+
   return 0;
 }

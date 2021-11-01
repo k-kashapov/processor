@@ -11,6 +11,7 @@ push 0
 je :solveLin
 
 call :findD
+call :findD
 
 push dx
 push 0

@@ -124,7 +124,7 @@ const char SetColor[8][10] =
       printf("RUNTIME ERROR: in function: out; error: %02lX\n", pop_err);       \
       return pop_err;                                                           \
     }                                                                           \
-    printf ("%.3lf\n", ((double)num) / 1000);                                   \
+    printf (">> %.3lf\n", ((double)num) / 1000);                                \
   }
 
 #define hlt_code return CMD_hlt;
@@ -175,6 +175,7 @@ const char SetColor[8][10] =
 
 #define drw_code                                                                \
   {                                                                             \
+    system ("clear");                                                           \
     long int len = RAM_MEM - (proc->video_mem - proc->RAM);                     \
     for (long Ypixel = 0; Ypixel < len; Ypixel += proc->xRes)                   \
     {                                                                           \
@@ -230,7 +231,7 @@ const char SetColor[8][10] =
   #define jump_with_2_args(name, action)                                        \
     {                                                                           \
       pop_ab ()                                                                 \
-      printf("command = " name "\n");                                          \
+      printf("command = " name "\n");                                           \
       if (action)                                                               \
       {                                                                         \
         printf("JUMP from %lx\n", proc->ip - sizeof (Header_t));                \

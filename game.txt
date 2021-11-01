@@ -1,0 +1,102 @@
+push 36
+pop ax ; pixels x
+push 16
+pop bx ; pixels y
+push 448
+pop cx ; video_mem
+
+call :drawField
+push 2
+pop [0]
+push 3
+pop [1]
+call :drawPlr
+drw
+
+hlt
+
+drawField:
+    push 0
+    pop [128]
+    push 0
+    pop [129]
+    call :cls
+    ret
+
+cls: ; fills screen with 0
+    push [129] ; y
+    push ax
+    mul
+
+    push [128] ; x
+    add
+
+    push cx
+    add
+    pop tx
+
+    push tx
+    push 1024
+    jae :clsEnd
+
+    push 0x42E
+    pop [tx]
+
+    push [128]
+    push ax
+    jb :nonIncCls ; no need to increment y
+    push [129]
+    push 1
+    add
+    pop [129] ; increment y
+
+    push 0
+    pop [128] ; x to zero
+nonIncCls:
+    push 1
+    push [128]
+    add
+    pop [128]
+    jmp :cls
+clsEnd:
+    ret
+
+drawPlr:
+    push [1] ; plr y
+    push ax
+    mul
+
+    push [0] ; plr x
+    add
+    push cx
+    add
+
+    pop tx
+    push 35
+    pop [tx]
+    ret
+
+
+fillPixel:
+    push [129] ; pixel y
+    push ax
+    mul
+
+    push [128] ; pixel x
+    add
+
+    push cx
+    add
+
+    pop tx
+
+    push [130] ; fill with this value
+
+    push [131] ; color to be filled with
+    push 0x10
+    mul        ; color index in second byte
+
+    add
+
+    pop [tx]
+    ret

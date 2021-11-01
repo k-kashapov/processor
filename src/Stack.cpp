@@ -15,7 +15,7 @@ FILE* Log_file = NULL;
 const int POISON = 0x42;
 uint64_t Stack_Err = 0;
 
-uint64_t StackInit_ (stack_t *stk, const char *file_name, const char *func_name, const int line, const char *name)
+uint64_t StackInit_d (stack_t *stk, const char *file_name, const char *func_name, const int line, const char *name)
 {
     stk->buffer = NULL;
 
@@ -23,16 +23,39 @@ uint64_t StackInit_ (stack_t *stk, const char *file_name, const char *func_name,
     stk->size = 0;
 
     #ifdef DEBUG_INFO
-        if (file_name && func_name && line > 0 && name)
-        {
-            stk->file = file_name;
-            stk->func = func_name;
-            stk->line = line;
-            stk->name = name;
+      if (file_name && func_name && line > 0 && name)
+      {
+          stk->file = file_name;
+          stk->func = func_name;
+          stk->line = line;
+          stk->name = name;
 
-            Log_file = fopen ("log.html", "a");
-        }
+          Log_file = fopen ("log.html", "a");
+      }
     #endif
+
+    #ifdef CANARY_PROTECTION
+        stk->canary_l = CANARY_VAL ^ (uint64_t) stk;
+        stk->canary_r = CANARY_VAL ^ (uint64_t) stk;
+    #endif
+
+    #ifdef HASH_PROTECTION
+        unsigned long len = sizeof (*stk) - sizeof (stk->struct_hash) - sizeof (stk->data_hash);
+        stk->struct_hash = MurmurHash (stk, len);
+        stk->data_hash = MurmurHash (stk->buffer, (unsigned long) stk->size * sizeof (type_t));
+    #endif
+
+    STACK_OK (stk);
+    if (Stack_Err) return Stack_Err;
+    return OK;
+}
+
+uint64_t StackInit_ (stack_t *stk)
+{
+    stk->buffer = NULL;
+
+    stk->capacity = 0;
+    stk->size = 0;
 
     #ifdef CANARY_PROTECTION
         stk->canary_l = CANARY_VAL ^ (uint64_t) stk;

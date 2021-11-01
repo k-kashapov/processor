@@ -24,10 +24,11 @@ long int read_all_lines (File_info *info, const char* file_name)
 
     fclose (source);
 
-    String **strings = (String **) calloc (BUFF_SIZE + 1, sizeof (String *)); //TODO arr of struct
+    String **strings = (String **) calloc (BUFF_SIZE + 1, sizeof (String *));
     assert (strings);
 
     String *strings_buff = (String *) calloc (BUFF_SIZE + 1, sizeof (String));
+    assert (strings_buff);
 
     for (int i = 0; i < BUFF_SIZE + 1; i++)
     {
@@ -48,6 +49,7 @@ long int read_all_lines (File_info *info, const char* file_name)
 
     info->text = text_buff;
     info->strs = strings;
+    info->strs_buff = strings_buff;
     info->lines_num = strings_ptr - strings;
 
     return info->lines_num;
@@ -129,6 +131,7 @@ void free_info (File_info *info)
 
     free (info->text);
     free (info->strs);
+    free (info->strs_buff);
 }
 
 void get_params (int argc, const char **argv, Config *current)

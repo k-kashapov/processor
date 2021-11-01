@@ -52,11 +52,13 @@ long ProcessCommand (const char *text, BinaryInfo *bin_info)
   uint64_t command_hash = MurmurHash (command, (unsigned long) cmd_len);
   printf ("hash = %lx; cmd len = %d", command_hash, cmd_len);
 
-  #include "commands.h"
-  #include "jump.h"
+  switch (command_hash)
   {
-    printf("\nCE: INVALID_SYNTAX command = %s\n", command);
-    return INVALID_SYNTAX;
+    #include "commands.h"
+    #include "jump.h"
+    default:
+      printf("\nCE: INVALID_SYNTAX command = %s\n", command);
+      return INVALID_SYNTAX;
   }
 
   return 1;
@@ -119,7 +121,7 @@ int Link (BinaryInfo *bin_info)
 {
   printf ("Linking: \n");
 
-  for (int jmp = 0; jmp < bin_info->jmp_num; jmp++)
+  for (unsigned long jmp = 0; jmp < bin_info->jmp_num; jmp++)
   {
     unsigned int destination = (unsigned int) bin_info->jumps[jmp].destination;
 
@@ -136,7 +138,7 @@ int Link (BinaryInfo *bin_info)
       continue;
     }
 
-    int lbl = 0;
+    unsigned long lbl = 0;
 
     for (lbl = 0; lbl < bin_info->lbl_num; lbl++)
     {

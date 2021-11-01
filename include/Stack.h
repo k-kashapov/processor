@@ -22,7 +22,7 @@ typedef int64_t type_t;
 
 #ifdef DEBUG_INFO
     #define StackInit(stk)                                        \
-        StackInit_ (&stk, __FILE__, __FUNCTION__, __LINE__, #stk);
+        StackInit_d (&stk, __FILE__, __FUNCTION__, __LINE__, #stk);
 
     #define STACK_OK(stk)                                   \
         Stack_Err = StackError (stk);                       \
@@ -105,11 +105,15 @@ uint64_t StackDump (stack_t *stk, uint64_t err, const char *called_from, const i
 
 unsigned long MurmurHash (const void *stk, unsigned long len);
 
-uint64_t StackInit_ (stack_t *stk, const char *file_name = NULL, const char *func_name = NULL, const int line = -1, const char *name = NULL);
+uint64_t StackInit_d (stack_t *stk, const char *file_name = NULL, const char *func_name = NULL, const int line = -1, const char *name = NULL);
+
+uint64_t StackInit_ (stack_t *stk);
 
 uint64_t StackDtor (stack_t *stk);
 
 uint64_t StackError (stack_t *stk);
+
+uint64_t StackResize (stack_t *stk, long new_capacity);
 
 uint64_t StackPush (stack_t* stk, type_t value);
 

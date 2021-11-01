@@ -35,5 +35,8 @@ int main(int argc, const char** argv)
   if (runtime_err)
     return (int) runtime_err;
 
+  free (proc.reg);
+  free (proc.RAM);
+
   return 0;
 }

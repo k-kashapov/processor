@@ -7,6 +7,7 @@ int disasm_cmd (processor *proc, FILE *output)
   switch (command & 0x1F)
   {
     #include "commands.h"
+    #include "jump.h"
     default:
       return INVALID_CODE;
   }
