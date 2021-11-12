@@ -35,6 +35,7 @@ int main(int argc, const char** argv)
   if (runtime_err)
     return (int) runtime_err;
 
+  free (proc.code - sizeof (Header_t));
   free (proc.reg);
   free (proc.RAM);
 

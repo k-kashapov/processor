@@ -5,6 +5,8 @@
 
 //#define PROC_DUMP
 
+const int MULTIPLIER = 1000;
+
 enum MASKS
 {
   MASK_IMM   = 0x40, // Immediate (4)
@@ -30,150 +32,132 @@ const char SetColor[8][10] =
   addr = *(proc->code + proc->ip) - 'a';                                        \
   if (addr < 0 || addr > REG_NUM)                                               \
   {                                                                             \
-    printf("RE: INVALID ARGUMENT; command = %d; arg = %ld\n",                   \
+    printf ("RE: INVALID ARGUMENT; command = %d; arg = %ld\n",                  \
     cmd, addr);                                                                 \
     return NULL;                                                                \
   }
 
 #define GET_NEXT_TYPE_T                                                         \
-  addr = *(type_t *)(proc->code + proc->ip) / 1000;                             \
+  addr = *(type_t *)(proc->code + proc->ip) / MULTIPLIER;                             \
   if (addr < 0 || addr > RAM_MEM)                                               \
   {                                                                             \
-    printf("RE: INVALID ARGUMENT; command = %d; arg = %ld\n",                   \
+    printf ("RE: INVALID ARGUMENT; command = %d; arg = %ld\n",                  \
     cmd, addr);                                                                 \
     return NULL;                                                                \
   }
 
 #define CHECK_MASK(val, msk) ((val & msk) == msk)
 
-#define pop_ab(cmd_name)                                                        \
-  uint64_t pop_err = 0;                                                         \
-  type_t b = StackPop (proc->stk, &pop_err);                                    \
-  type_t a = StackPop (proc->stk, &pop_err);                                    \
+#define POP(cmd_name)                                                           \
+  StackPop (proc->stk, &pop_err);                                               \
   if (pop_err)                                                                  \
   {                                                                             \
-    printf("RUNTIME ERROR: in function: " #cmd_name                             \
+    printf ("RUNTIME ERROR: in function: " #cmd_name                            \
     "; error: %06lX\n", pop_err);                                               \
     return pop_err;                                                             \
   }
 
-#define push_code                                                               \
+#define TOP(cmd_name)                                                           \
+  StackTop (proc->stk, &pop_err);                                               \
+  if (pop_err)                                                                  \
   {                                                                             \
-    type_t *arg = get_arg (proc, command);                                      \
-    StackPush (proc->stk, *arg);                                                \
+    printf ("RUNTIME ERROR: in function: " #cmd_name                            \
+    "; error: %06lX\n", pop_err);                                               \
+    return pop_err;                                                             \
   }
 
-#define in_code                                                                 \
+#define PUSH(value) StackPush (proc->stk, value)
+
+#define POP_AB(cmd_name)                                                        \
+  uint64_t pop_err = 0;                                                         \
+  type_t b = POP (cmd_name);                                                    \
+  type_t a = POP (cmd_name);
+
+
+#define PUSH_CODE                                                               \
+  {                                                                             \
+    type_t *arg = get_arg (proc, command);                                      \
+    PUSH (*arg);                                                                \
+  }
+
+#define IN_CODE                                                                 \
   {                                                                             \
     double in_val = 0;                                                          \
     printf ("Waiting for input...\n");                                          \
     scanf("%lf", &in_val);                                                      \
-    StackPush(proc->stk, (type_t) (in_val * 1000));                             \
+    PUSH ((type_t) (in_val * MULTIPLIER));                                            \
   }
 
-#define pop_code                                                                \
+#define POP_CODE                                                                \
   {                                                                             \
     uint64_t pop_err = 0;                                                       \
-    type_t pop_val = StackPop (proc->stk, &pop_err);                            \
-                                                                                \
-    if (pop_err)                                                                \
-    {                                                                           \
-      printf("RUNTIME ERROR: command = %d;error: %06lX\n",                      \
-      command, pop_err);                                                        \
-      return pop_err;                                                           \
-    }                                                                           \
+    type_t pop_val = POP (pop);                                                 \
     type_t *dest = get_arg (proc, command);                                     \
     *dest = pop_val;                                                            \
   }
 
-#define add_code                                                                \
+#define ADD_CODE                                                                \
   {                                                                             \
-    pop_ab (add);                                                               \
-    StackPush (proc->stk, a + b);                                               \
+    POP_AB (add);                                                               \
+    PUSH (a + b);                                                               \
   }
 
-#define sub_code                                                                \
+#define SUB_CODE                                                                \
   {                                                                             \
-    pop_ab (sub);                                                               \
-    StackPush (proc->stk, a - b);                                               \
+    POP_AB (sub);                                                               \
+    PUSH (a - b);                                                               \
   }
 
-#define mul_code                                                                \
+#define MUL_CODE                                                                \
   {                                                                             \
-    pop_ab (mul);                                                               \
-    StackPush (proc->stk, a * b / 1000);                                        \
+    POP_AB (mul);                                                               \
+    PUSH (a * b / MULTIPLIER);                                                  \
   }
 
-#define div_code                                                                \
+#define DIV_CODE                                                                \
   {                                                                             \
-    pop_ab (div);                                                               \
+    POP_AB (div);                                                               \
     if (b == 0)                                                                 \
     {                                                                           \
       printf("RUNTIME ERROR: division by zero\n");                              \
       return DIV_BY_ZERO;                                                       \
     }                                                                           \
-    StackPush (proc->stk, (type_t) (1000.0f / (float) b * (float) a));          \
+    PUSH ((type_t) ((float)MULTIPLIER / (float) b * (float) a));                \
   }
 
-#define out_code                                                                \
+#define OUT_CODE                                                                \
   {                                                                             \
     uint64_t pop_err = 0;                                                       \
-    type_t num = StackTop (proc->stk, &pop_err);                                \
-    if (pop_err)                                                                \
-    {                                                                           \
-      printf("RUNTIME ERROR: in function: out; error: %02lX\n", pop_err);       \
-      return pop_err;                                                           \
-    }                                                                           \
-    printf (">> %.3lf\n", ((double)num) / 1000);                                \
+    type_t num = TOP (&pop_err);                                                \
+    printf (">> %.3lf\n", ((double)num) / MULTIPLIER);                          \
   }
 
-#define hlt_code return CMD_hlt;
+#define HLT_CODE return CMD_hlt;
 
-#define call_action !StackPush (proc->stk, (type_t) (proc->ip + sizeof (type_t)))
+#define CALL_ACTION !PUSH ((type_t) (proc->ip + sizeof (type_t)))
 
-#define sin_code                                                                \
+#define SIN_CODE                                                                \
   {                                                                             \
     uint64_t pop_err = 0;                                                       \
-    type_t pop_val = StackPop (proc->stk, &pop_err);                            \
-                                                                                \
-    if (pop_err)                                                                \
-    {                                                                           \
-      printf("RUNTIME ERROR: command = %d;error: %06lX\n",                      \
-      command, pop_err);                                                        \
-      return pop_err;                                                           \
-    }                                                                           \
-    StackPush (proc->stk, (type_t) sin (((double)pop_val) / 1000) * 1000);      \
+    type_t pop_val = POP (sin);                                                 \
+    PUSH ((type_t) sin (((double)pop_val) / MULTIPLIER) * MULTIPLIER);                      \
   }
 
-#define cos_code                                                                \
+#define COS_CODE                                                                \
   {                                                                             \
     uint64_t pop_err = 0;                                                       \
-    type_t pop_val = StackPop (proc->stk, &pop_err);                            \
-                                                                                \
-    if (pop_err)                                                                \
-    {                                                                           \
-      printf("RUNTIME ERROR: command = %d;error: %06lX\n",                      \
-      command, pop_err);                                                        \
-      return pop_err;                                                           \
-    }                                                                           \
-    StackPush (proc->stk, (type_t) cos (((double)pop_val) / 1000) * 1000);      \
+    type_t pop_val = POP (cos);                                                 \
+    PUSH ((type_t) cos (((double)pop_val) / MULTIPLIER) * MULTIPLIER);                      \
   }
 
-#define sqrt_code                                                               \
+#define SQRT_CODE                                                               \
   {                                                                             \
     uint64_t pop_err = 0;                                                       \
-    type_t pop_val = StackPop (proc->stk, &pop_err);                            \
-                                                                                \
-    if (pop_err)                                                                \
-    {                                                                           \
-      printf("RUNTIME ERROR: command = %d;error: %06lX\n",                      \
-      command, pop_err);                                                        \
-      return pop_err;                                                           \
-    }                                                                           \
-    StackPush (proc->stk, (type_t) sqrt (((double)pop_val) / 1000) * 1000);     \
+    type_t pop_val = POP (sqrt);                                                \
+    PUSH ((type_t) sqrt (((double)pop_val) / MULTIPLIER) * MULTIPLIER);                     \
   }
 
-#define drw_code                                                                \
+#define DRW_CODE                                                                \
   {                                                                             \
     system ("clear");                                                           \
     long int len = RAM_MEM - (proc->video_mem - proc->RAM);                     \
@@ -181,7 +165,7 @@ const char SetColor[8][10] =
     {                                                                           \
       for (long xPixel = 0; xPixel < proc->xRes; xPixel++)                      \
       {                                                                         \
-        type_t pixel_val = *(proc->video_mem + Ypixel + xPixel) / 1000;         \
+        type_t pixel_val = *(proc->video_mem + Ypixel + xPixel) / MULTIPLIER;         \
         unsigned char pixel_sym = (unsigned char) pixel_val;                    \
         unsigned char color_val = (unsigned char) ((pixel_val >> 8) % 8);       \
         printf ("%s", SetColor[color_val]);                                     \
@@ -192,26 +176,21 @@ const char SetColor[8][10] =
   }
 
 #ifdef PROC_DUMP
-  #define ret_code                                                              \
+  #define RET_CODE                                                              \
     {                                                                           \
       uint64_t pop_err = 0;                                                     \
-      type_t val = StackPop (proc->stk, &pop_err);                              \
-      printf("value to ret to = %lx\n", val);                                   \
-      if (pop_err)                                                              \
-      {                                                                         \
-        printf("RUNTIME ERROR: in function: out; error: %02lX\n", pop_err);     \
-        return pop_err;                                                         \
-      }                                                                         \
+      type_t val = POP (ret);                                                   \
+      printf ("value to ret to = %lx\n", val);                                  \
       proc->ip = val;                                                           \
     }
 
   #define DEF_CMD(num, name, argc, code, hash)                                  \
     case CMD_##name:                                                            \
-      printf("Command = " #name "\n");                                          \
+      printf ("Command = " #name "\n");                                         \
       code;                                                                     \
       break;
 
-  #define jump_with_0_args(name, action)                                        \
+  #define JUMP_WITH_0_ARGS(name, action)                                        \
     {                                                                           \
       printf("command = " #name "\n");                                          \
       if (action)                                                               \
@@ -228,9 +207,9 @@ const char SetColor[8][10] =
       }                                                                         \
     }
 
-  #define jump_with_2_args(name, action)                                        \
+  #define JUMP_WITH_2_ARGS(name, action)                                        \
     {                                                                           \
-      pop_ab ()                                                                 \
+      POP_AB ()                                                                 \
       printf("command = " name "\n");                                           \
       if (action)                                                               \
       {                                                                         \
@@ -246,15 +225,10 @@ const char SetColor[8][10] =
       }                                                                         \
     }
 #else
-  #define ret_code                                                              \
+  #define RET_CODE                                                              \
     {                                                                           \
       uint64_t pop_err = 0;                                                     \
-      type_t ret_val = StackPop (proc->stk, &pop_err);                          \
-      if (pop_err)                                                              \
-      {                                                                         \
-        printf("RUNTIME ERROR: in function: out; error: %02lX\n", pop_err);     \
-        return pop_err;                                                         \
-      }                                                                         \
+      type_t ret_val = POP (ret);                                               \
       proc->ip = (unsigned long) ret_val;                                       \
     }
 
@@ -263,7 +237,7 @@ const char SetColor[8][10] =
       code;                                                                     \
       break;
 
-  #define jump_with_0_args(name, action)                                        \
+  #define JUMP_WITH_0_ARGS(name, action)                                        \
     {                                                                           \
       if (action)                                                               \
       {                                                                         \
@@ -276,9 +250,9 @@ const char SetColor[8][10] =
       }                                                                         \
     }
 
-  #define jump_with_2_args(name, action)                                        \
+  #define JUMP_WITH_2_ARGS(name, action)                                        \
     {                                                                           \
-      pop_ab ()                                                                 \
+      POP_AB ()                                                                 \
       if (action)                                                               \
       {                                                                         \
         val = *(type_t *)(proc->code + proc->ip);                               \
@@ -293,7 +267,7 @@ const char SetColor[8][10] =
 
 #define DEF_JMP_CMD(num, name, argc, action, hash)                              \
   case CMD_##name:                                                              \
-    jump_with_##argc##_args (#name, action);                                    \
+    JUMP_WITH_##argc##_ARGS (#name, action);                                    \
     break;
 
 enum ExitCodes
@@ -304,7 +278,6 @@ enum ExitCodes
   INVALID_VERSION   = -4,
   INVALID_ARG       = -5,
 };
-
 
 struct processor
 {

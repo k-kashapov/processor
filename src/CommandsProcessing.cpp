@@ -32,7 +32,7 @@ int read_code (processor *proc, Config *io_config)
   FILE *code = fopen (io_config->input_file, "rb");
   assert (code && "file opened");
 
-  proc->code = (unsigned char *)read_to_end (code);
+  proc->code = (unsigned char *) read_to_end (code);
   assert (proc->code);
 
   int closed = fclose (code);
@@ -90,17 +90,17 @@ uint64_t run_binary (processor *proc)
 
       if (result == CMD_hlt)
       {
-        return 0;
+        break;
       }
 
       if (result)
       {
         printf ("\nFATAL: command = %d at %06lX; error = %lu\n",
         proc->code[proc->ip - 1], (proc->ip - 1), result);
-        return result;
+        break;
       }
   }
-
+  StackDtor (proc->stk);
   return 0;
 }
 

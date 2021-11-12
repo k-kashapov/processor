@@ -22,6 +22,162 @@ int get_io_args (int argc, const char **argv, Config *curr_config)
   return 0;
 }
 
+long get_args (const char *text, char cmd, int argc, BinaryInfo *bin_info)
+{
+  type_t tmp_int = 0;
+  double tmp_lf = 0;
+  unsigned char mask = 0x00;
+  int arg_scanned = 0;
+  if (sscanf (text, "[%1[a-z]x + %ld]", (char *)&tmp_int, &tmp_int) == 2)
+  {
+    mask = MASK_S2RAM;
+  }
+  else
+  GET_MASK (     "[%ld]",         &tmp_int, MASK_I2RAM)
+  GET_MASK (       "%lf",          &tmp_lf,   MASK_IMM)
+  GET_MASK ("[%1[a-z]x]", (char *)&tmp_int, MASK_R2RAM)
+  GET_MASK (  "%1[a-z]x", (char *)&tmp_int,   MASK_REG)
+  {
+    arg_scanned = EOF;
+  }
+  if (arg_scanned == EOF && argc > 0)
+  {
+    printf("\nCE: INVALID ARGUMENT command = %d\n", cmd);
+    return INVALID_ARG;
+  }
+  SPUT (cmd | mask);
+  printf ("code  = %02X;\n", (unsigned char)(cmd | mask));
+
+  long bytes_written = 0;
+
+  for (int arg = 0; arg < argc; arg++)
+  {
+    int arg_bytes_read = 0;
+    if (mask == MASK_S2RAM)
+    {
+      char regv = 0;
+      type_t offset = 0;
+      arg_scanned = sscanf (text, "[%1[a-z]x + %ld]", &regv, &offset);
+      if (!arg_scanned)
+      {
+        printf ("INVALID_ARG\n");
+        return INVALID_ARG;
+      }
+      printf ("args = %d and %ld; bytes = ", regv, offset);
+      SPRINT_BYTES (regv);
+      bin_info->binary += 1;
+      bytes_written += 1;
+      SPRINT_BYTES (offset);
+      bytes_written += (long) sizeof(type_t);
+    }
+    else if (mask == MASK_I2RAM)
+    {
+      type_t argv = 0;
+      arg_scanned = sscanf (text, "[%ld]", &argv);
+      if (!arg_scanned)
+      {
+        printf ("INVALID_ARG\n");
+        return INVALID_ARG;
+      }
+      printf ("value = %ld; bytes = ", argv);
+      type_t value = (argv * 1000);
+      SPRINT_BYTES (value);
+      bytes_written += (long) sizeof(type_t);
+    }
+    else if (mask == MASK_IMM)
+    {
+      double argv = 0;
+      arg_scanned = sscanf (text, "%lf", &argv);
+      if (!arg_scanned)
+      {
+        printf ("INVALID_ARG\n");
+        return INVALID_ARG;
+      }
+      printf ("value = %06.3lf; bytes = ", argv);
+      type_t value = (type_t)(argv * 1000);
+      SPRINT_BYTES (value);
+      bytes_written += (long) sizeof(type_t);
+    }
+    else if (mask == MASK_R2RAM)
+    {
+      int argv = 0;
+      arg_scanned = sscanf (text, "[%1[a-z]x]", (char *)&argv);
+      if (!arg_scanned)
+      {
+        printf ("INVALID_ARG\n");
+        return INVALID_ARG;
+      }
+      printf ("value = %d; bytes = ", argv);
+      type_t value = (type_t)(argv * 1000);
+      SPRINT_BYTES (value);
+      bytes_written += (long) sizeof(type_t);
+    }
+    else
+    {
+      int argv = 0;
+      arg_scanned = sscanf (text, "%1[a-z]x", (char *)&argv);
+      if (!arg_scanned)
+      {
+        printf ("INVALID_ARG\n");
+        return INVALID_ARG;
+      }
+      printf ("arg = %d; bytes = ", argv);
+      SPRINT_BYTES (argv);
+      bytes_written += 1;
+    }
+    text += arg_bytes_read;
+  }
+  return bytes_written;
+}
+
+long get_jmp_args (const char *text, char cmd, BinaryInfo *bin_info, unsigned long curr_ip, long long int max_line)
+{
+  printf ("code  = %02X; bytes = \n", (unsigned int)cmd);
+  SPUT (cmd);
+
+  char jmp_arg[MAX_NAME_LEN] = {};
+  int arg_len = 0;
+  int scanned = sscanf (text, ": %[a-zA-Z0-9]%n", jmp_arg, &arg_len);
+  type_t dummy = 0;
+  if (!scanned)
+  {
+    int dest_line = 0;
+    scanned = sscanf (text, "%d", &dest_line);
+    if (!scanned)
+    {
+      printf("\nCE: IVALID ARGUMENT command = %d\n", cmd);
+      return INVALID_ARG;
+    }
+    if (dest_line > max_line)
+    {
+      printf("\nCE: LINE NUMBER IS TOO BIG command = %d\n", cmd);
+      return INVALID_ARG;
+    }
+    bin_info->jumps[bin_info->jmp_num].destination = dest_line;
+    GET_JMP_IP (bin_info->jmp_num) = (type_t) curr_ip;
+    bin_info->jmp_num++;
+    SPRINT_BYTES (dummy);
+    return sizeof (type_t);
+  }
+  uint64_t arg_hash = MurmurHash (jmp_arg, (unsigned long) arg_len - 1);
+
+  for (unsigned long lbl_iter = 0; lbl_iter < bin_info->lbl_num; lbl_iter++)
+  {
+    if (GET_LABEL_HASH (lbl_iter) == arg_hash)
+    {
+      type_t dest_ip = GET_LABEL_IP (lbl_iter);
+      SPRINT_BYTES (dest_ip);
+      putc ('\n', stdout);
+      return sizeof (type_t);
+    }
+  }
+  SPRINT_BYTES (dummy);
+  GET_JMP_IP (bin_info->jmp_num) = (type_t) curr_ip;
+  GET_JMP_HASH (bin_info->jmp_num) = arg_hash;
+  bin_info->jmp_num++;
+  return sizeof (type_t);
+}
+
 long ProcessCommand (const char *text, BinaryInfo *bin_info)
 {
   char command[MAX_NAME_LEN] = {};

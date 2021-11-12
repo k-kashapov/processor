@@ -22,7 +22,7 @@ typedef int64_t type_t;
 
 #ifdef DEBUG_INFO
     #define StackInit(stk)                                        \
-        StackInit_d (&stk, __FILE__, __FUNCTION__, __LINE__, #stk);
+        StackInit_ (&stk, __FILE__, __FUNCTION__, __LINE__, #stk);
 
     #define STACK_OK(stk)                                   \
         Stack_Err = StackError (stk);                       \
